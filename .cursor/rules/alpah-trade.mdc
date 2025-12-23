@@ -1,0 +1,60 @@
+---
+description: General rules for Alpha-Trade project including architecture, coding standards, and workflow.
+globs: "**/*"
+alwaysApply: true
+---
+# AI Instructions for Alpha-Trade
+
+## Project Context
+- **Type**: Quantitative Trading System (Spot: Binance/OKX)
+- **Architecture**: Modular Monolith (Gateway -> Core -> Infra)
+- **Language**: Go (Golang)
+- **Key Goals**: Low Latency, Strict Risk Control, High Testability
+
+## Directory Structure Rules
+- `internal/domain`: **PURE** business logic. **NO** external imports (e.g., NO `gorm`, `redis`, `binance-sdk` imports here).
+- `internal/gateway`: External system adapters (Exchange API, WebSocket). Handle rate limits, signatures, and reconnects here.
+- `internal/logic`: Core business workflows (Strategy Engine, Risk Manager, Order Management).
+- `internal/infra`: Infrastructure implementations (Database, Redis, Logging).
+- `cmd/`: Main entry points.
+  - `cmd/bot`: Live trading bot.
+  - `cmd/backtest`: Backtesting simulator.
+
+## Coding Standards
+
+### 1. Data Types & Precision
+- **Price/Quantity**: Use `float64` for high-performance calculation in strategies, but ensure precision formatting when sending to exchange.
+- **Time**: Use `time.Time` for timestamps. In backtest, use the event time, NOT `time.Now()`.
+
+### 2. Error Handling
+- **Typed Errors**: Define specific errors for domain logic, especially Risk Control (e.g., `ErrRiskLimitExceeded`, `ErrCircuitBreakerOpen`).
+- **Wrapping**: Always wrap errors with context: `fmt.Errorf("strategy: calc signal: %w", err)`.
+
+### 3. Concurrency & Safety
+- **Context**: All blocking operations (IO, Channels) must respect `context.Context`.
+- **State Safety**: Use `sync.RWMutex` for protecting shared in-memory state (e.g., `Account` struct in Risk Manager).
+- **Event Bus**: Prefer buffered channels for decoupling Gateway and Strategy.
+
+### 4. Interfaces & Mocking
+- **Dependency Inversion**: `logic` layer depends on `repository` interfaces, not `infra` structs.
+- **Mocking**: Every external dependency (Exchange, DB) MUST have a Mock implementation for testing/backtesting.
+
+## Development Workflow
+
+### Phase 1: Kernel & Domain (Current Focus)
+- Prioritize defining stable `structs` in `internal/domain/model`.
+- Implement core Risk Logic in `internal/logic/risk` without external dependencies.
+- **Data Persistence**: 
+  - For Phase 1, use in-memory maps for storage to speed up logic development.
+  - Refer to `sql/schema.sql` for the target data model design.
+  - **Do not** write actual GORM/SQL implementation code yet unless explicitly instructed.
+
+### Documentation
+- **Specs**: Update `docs/DEVELOPMENT_MANUAL.md` if architecture changes.
+- **Plans**: Check and update `docs/plans/*.md` regularly.
+- **Diagrams**: Use Mermaid to visualize state machines (e.g., Order Status transitions).
+
+## Reference
+- See `docs/DEVELOPMENT_MANUAL.md` for the Master Architecture.
+- See `docs/risk.md` for mandatory Risk Control Rules.
+- See `sql/schema.sql` for Database Schema definitions.

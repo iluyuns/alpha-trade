@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # NATS 消息队列
+  nats:
+    image: nats:2.10-alpine
+    container_name: alpha-trade-nats
+    command: "-js -sd /data" # 开启 JetStream 持久化，数据存放在 /data
+    ports:
+      - "4222:4222" # 客户端端口
+      - "8222:8222" # 监控端口
+    volumes:
+      - nats_data:/data
+    restart: always
+
+  # AI 决策 Agent
+  ai-agent:
+    build:
+      context: ./ai-agent
+      dockerfile: Dockerfile
+    container_name: alpha-trade-ai-agent
+    depends_on:
+      - nats
+    environment:
+      - NATS_URL=nats://nats:4222
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY} # 从宿主机 .env 文件读取
+    restart: always
+
+  # RSSHub - 社交媒体转换引擎
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: alpha-trade-rsshub
+    restart: always
+    ports:
+      - "1200:1200"
+    environment:
+      - NODE_ENV=production
+      - CACHE_TYPE=redis
+      - REDIS_URL=redis://redis:6379/0
+      - TWITTER_USERNAME=${TWITTER_USERNAME} # 选填：用于增加抓取成功率
+      - TWITTER_PASSWORD=${TWITTER_PASSWORD} # 选填
+    depends_on:
+      - redis
+
+  # Redis - RSSHub 缓存
+  redis:
+    image: redis:alpine
+    container_name: alpha-trade-redis
+    restart: always
+
+volumes:
+  nats_data:
+
+
