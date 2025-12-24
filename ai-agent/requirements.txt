@@ -4,4 +4,5 @@ nats-py
 python-dotenv
 pydantic
 httpx
+psycopg[binary]
 

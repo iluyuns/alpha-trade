@@ -1,0 +1,126 @@
+[
+  {
+    "name": "Mt. Gox Hack & Collapse",
+    "date": "2014-02-28",
+    "severity": 10,
+    "category": "Exchange",
+    "tags": [
+      "Hack",
+      "Bankruptcy",
+      "Gox"
+    ],
+    "description": "Mt. Gox, handling 70% of global BTC transactions, filed for bankruptcy in Tokyo District Court after losing 850,000 BTC.",
+    "description_cn": "Mt. Gox 交易所（当时承载全球 70% 交易量）在东京地方法院正式申请破产保护。此前该公司承认因系统漏洞被黑客盗取 85 万枚比特币，CEO Mark Karpeles 在发布会上鞠躬道歉，引发长达两年的熊市。",
+    "impact_pattern": "Long-term bear market, loss of trust in centralized exchanges.",
+    "short_term_impact": -50.0
+  },
+  {
+    "name": "China 9/4 ICO Ban",
+    "date": "2017-09-04",
+    "severity": 9,
+    "category": "Regulation",
+    "tags": [
+      "China",
+      "Ban",
+      "ICO"
+    ],
+    "description": "Seven Chinese ministries (PBoC, CAC, etc.) jointly issued a notice banning ICOs and demanding refunds.",
+    "description_cn": "中国央行、网信办等七部委联合发布《关于防范代币发行融资风险的公告》，定性 ICO 为非法集资，要求立即停止并清退已融资金。随后火币、OKCoin 等交易所宣布停止人民币交易，导致比特币当日暴跌 35%。",
+    "impact_pattern": "Panic selling, migration of industry out of China.",
+    "short_term_impact": -35.0
+  },
+  {
+    "name": "Black Thursday (Covid Crash)",
+    "date": "2020-03-12",
+    "severity": 10,
+    "category": "Macro",
+    "tags": [
+      "Covid",
+      "Liquidity Crisis",
+      "Crash"
+    ],
+    "description": "WHO declared Covid-19 a pandemic, triggering a global liquidity crisis. BitMEX liquidation engine overwhelmed.",
+    "description_cn": "世卫组织宣布新冠为全球大流行，美股熔断引发流动性枯竭。比特币在 24 小时内从 $8000 跌至 $3800，BitMEX 交易所因多头连环爆仓导致服务器宕机（拔网线），DeFi 协议面临清算死亡螺旋。",
+    "impact_pattern": "Massive liquidations across all assets, rapid recovery due to QE.",
+    "short_term_impact": -50.0
+  },
+  {
+    "name": "Luna/UST De-pegging",
+    "date": "2022-05-07",
+    "severity": 10,
+    "category": "Stablecoin",
+    "tags": [
+      "Luna",
+      "UST",
+      "Death Spiral",
+      "Do Kwon"
+    ],
+    "description": "Curve pool imbalance triggered UST de-pegging. LFG sold 80k BTC to defend peg but failed.",
+    "description_cn": "Curve 3pool 中 UST 占比异常引发恐慌抛售。尽管 LFG 基金会出售 8 万枚 BTC 护盘，但 UST 仍跌破 $0.98，触发 LUNA 增发死亡螺旋。随后 Do Kwon 在推特发布 'Steady lads' 但无力回天，400 亿美元市值归零。",
+    "impact_pattern": "Systemic risk contagion, collapse of major lenders (Celsius, 3AC).",
+    "short_term_impact": -60.0
+  },
+  {
+    "name": "FTX Bankruptcy Filing",
+    "date": "2022-11-11",
+    "severity": 10,
+    "category": "Exchange",
+    "tags": [
+      "FTX",
+      "SBF",
+      "Fraud",
+      "Chapter 11"
+    ],
+    "description": "FTX Group filed for Chapter 11 bankruptcy in Delaware after CoinDesk report exposed Alameda's balance sheet.",
+    "description_cn": "在 CoinDesk 曝光 Alameda 资产负债表主要由 FTT 构成后，币安赵长鹏 (CZ) 宣布清仓 FTT 引发挤兑。FTX 无法应对 60 亿美元提款需求，SBF 在特拉华州申请破产重组，随后被巴哈马警方逮捕。",
+    "impact_pattern": "Extreme panic, multi-year low for BTC, regulatory crackdown.",
+    "short_term_impact": -30.0
+  },
+  {
+    "name": "Bitcoin $100k Breakout",
+    "date": "2024-12-05",
+    "severity": 9,
+    "category": "Market",
+    "tags": [
+      "ATH",
+      "100k",
+      "Psychological Barrier"
+    ],
+    "description": "Bitcoin's price surpassed $100,000 for the first time, triggering broad FOMO and elevated volatility across the crypto market.",
+    "description_cn": "比特币价格首次突破 10 万美元关口，引发市场 FOMO 情绪并带来显著波动，带动整个加密市场交易活跃度上升。",
+    "impact_pattern": "FOMO followed by extreme volatility as late buyers enter.",
+    "short_term_impact": 15.0
+  },
+  {
+    "name": "U.S. Strategic Bitcoin Reserve Executive Order",
+    "date": "2025-03-06",
+    "severity": 10,
+    "category": "Policy",
+    "tags": [
+      "Trump",
+      "Reserve",
+      "USA",
+      "Executive Order"
+    ],
+    "description": "President Trump signed an executive order (EO 14233) establishing a Strategic Bitcoin Reserve and a U.S. Digital Asset Stockpile; the reserve is described as being funded by forfeited bitcoin held by the U.S. Treasury.",
+    "description_cn": "特朗普签署行政令（EO 14233）建立“战略比特币储备”和“美国数字资产储备库”。公开资料描述该储备主要由美国财政部持有的罚没比特币（forfeited bitcoin）构成。",
+    "impact_pattern": "Policy shock and narrative shift; short-term repricing and high volatility.",
+    "short_term_impact": 20.0
+  },
+  {
+    "name": "U.S. 'Liberation Day' Tariff Announcement",
+    "date": "2025-04-02",
+    "severity": 8,
+    "category": "Macro",
+    "tags": [
+      "Trade War",
+      "Tariffs",
+      "China",
+      "Black Swan"
+    ],
+    "description": "The U.S. announced a large-scale new tariff policy package (nicknamed \"Liberation Day\"), triggering a global risk-off shock and sharp cross-asset volatility.",
+    "description_cn": "美国宣布大规模新关税政策（被媒体称为“Liberation Day”），引发全球风险偏好快速转向，带来跨资产剧烈波动。",
+    "impact_pattern": "Risk-off sentiment, cross-asset volatility; intermittent decoupling from equities.",
+    "short_term_impact": -12.0
+  }
+]
