@@ -23,6 +23,7 @@
 - [ ] 初始化 `go.mod` (Module: `alpha-trade`)
 - [ ] 创建标准目录结构 (`cmd`, `internal`, `configs`, `docs`)
 - [ ] 引入基础依赖 (`shopspring/decimal`, `zap`, `viper`)
+- [ ] **安全基建**: 引入 `go-webauthn` 并设计用户表结构 (支持 Passkeys)。
 
 ### 1.2 领域模型定义 (`internal/domain/model`)
 - [ ] **Money**: 封装 `decimal.Decimal`，处理金额/数量计算。

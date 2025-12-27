@@ -33,14 +33,15 @@
 - [ ] **`obj_symbol.go`**: 定义 `SymbolConfig` (含 `MinQty`, `MinNotional`, `FeeConfig`)。
 - [ ] **`obj_market.go`**: 
     - 定义 `Tick`, `KLine`。
+    - **`Tick` 结构**: 必须包含 `LastPrice`, `MarkPrice`, `IndexPrice` 三价。
     - **`OrderBook` 结构**: 维护 `Bids`, `Asks` (价格->数量)，并提供 `SlippageEstimate(qty)` 方法。
 - [ ] **`obj_account.go`**: 
     - `Account` 包含 `map[string]*Position`。
     - `Position` 包含 `Symbol`, `Legs` (FIFO队列)。
     - `PositionLeg` (EntryPrice, Qty, Time)。
 - [ ] **`obj_settlement.go`**: 
-    - 定义 `Settlement` (结算单): 记录每次平仓的 `RealizedPnL`, `Duration`, `TradeID`。
-    - 必须区分 `EstimatedPnL` (预估) 和 `RealizedPnL` (实际)。
+    - 定义 `Settlement` (结算单): 记录每次平仓的 `RealizedPnL`, `FundingFees` (合约专用), `Duration`, `TradeID`。
+    - 必须区分 `EstimatedPnL` (预估) 和 `RealizedPnL` (实际)，均需根据市场类型包含/排除资金费率。
 - [ ] **`obj_risk.go`**: 定义 `RiskState` (持久化状态)。
 
 ### 1.3 核心接口定义 (`internal/domain/port`)
@@ -100,6 +101,7 @@
     - **`CheckDynamicLeverage`**: 仓位 > 10% 时强制 1x 杠杆。
     - **`CheckLiqDistance`**: 确保保留 60% 强平缓冲。
     - **`CheckRRRatio`**: 确保盈亏比 >= 1.5。
+    - **`HandleLossExit`**: 亏损平仓后的熔断计数与权益校准逻辑。
 - [ ] **`Check(ctx, signal)`**: 根据 `signal.Type` 路由到对应 Validator。
 - [ ] **资金流处理**:
     - `RequestWithdraw(amount decimal.Decimal) error`: 预审批提现，试算风险，调整基准。

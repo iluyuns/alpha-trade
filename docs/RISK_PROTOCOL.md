@@ -16,7 +16,19 @@
 
 ---
 
-## 2. L1: 系统级风控 (System Hard Stops)
+## 2. 价格参考标准 (Price Reference Standards)
+
+为了防止单点异常行情（插针）误触发风控或导致开仓异常，系统执行以下价格引用准则：
+
+| 价格类型 | 定义 | 系统应用场景 |
+| :--- | :--- | :--- |
+| **最新成交价 (Last Price)** | 当前交易所的最后一笔成交价 | 订单执行、紧急平仓触发、市价单滑点估算。 |
+| **标记价格 (Mark Price)** | 经过平滑处理的合约参考价 | **未实现盈亏计算、账户健康度评估、风控止损触发、强平防卫。** |
+| **指数价格 (Index Price)** | 多个主流交易所现货价格的加权平均 | **开仓价格偏离度检查 (Fat-Finger Guard)。** |
+
+---
+
+## 3. L1: 系统级风控 (System Hard Stops)
 
 **触发后果**: **全系统停机 (Halt)**，取消所有挂单，仅允许平仓请求，发送最高级别告警。
 
@@ -57,8 +69,9 @@
 
 ### 2.6 交易所交互安全 (Exchange Interaction)
 *   **本地限流 (Local Rate Limiter)**:
-    *   Gateway 必须维护本地令牌桶，严格遵守交易所 Rate Limit 规则。
-    *   **动作**: 在请求耗尽权重前主动阻塞，严禁触发 IP Ban。
+    *   Gateway 必须维护本地**滑动窗口 (Sliding Window)**，严格遵守交易所 Rate Limit 规则。
+    *   *说明*: 弃用令牌桶，防止突发流量 (Burst) 触发交易所的 IP 权重封禁。
+    *   **动作**: 在请求耗尽权重前主动阻塞。
 *   **时钟同步 (Time Sync)**:
     *   启动时及每小时检测: `Abs(LocalTime - ExchangeTime) > 1s`?
     *   **动作**: 警告并自动计算 TimeOffset 修正请求头，若偏差过大 (>5s) 则停机。
@@ -144,16 +157,111 @@
     *   下单前必须通过本地 OrderBook 计算：`1% 深度内的累计价值 >= 订单名义价值 * 5`。
     *   *逻辑*: 确保单笔订单不占用盘口核心深度的 20% 以上，防止产生极端冲击成本。
 *   **滑点预估保护 (Slippage Guard)**:
-    *   规则: `(预估平均成交价 - 当前市价) / 当前市价 <= 0.5%` (根据币种流动性可调)。
-    *   *动作*: 若预估滑点超过阈值，系统必须拒绝市价单，转为 **限价单 (Limit Order)** 或 **算法拆单 (TWAP)**。
+    *   **规则**: 严禁无保护的市价单。所有市价单必须在 API 层封装为带有价格保护的 **IOC (Immediate-or-Cancel)** 限价单。
+    *   **价格上限 (Long/Buy)**: `ExecutionPrice <= SignalPrice * (1 + SlippageTolerance)`。
+    *   **价格下限 (Short/Sell)**: `ExecutionPrice >= SignalPrice * (1 - SlippageTolerance)`。
+    *   **动作**: 若瞬时滑点超过阈值，交易所会部分成交或全部撤单，系统不再二次追单。
 
-### 4.2 费率保护 (Fee Protection)
-*   **规则**: 计算预期盈利时，必须扣除 **双倍手续费** (开仓+平仓)。
-*   **公式**: 如果 `ExpectedProfit < OrderValue * (MakerFee + TakerFee) * 1.5`，则该交易无利可图，直接过滤。
+### 4.6 追高与踏空保护 (Anti-Chasing Logic)
+
+针对“ V 型反转”或“插针后暴拉”场景，系统执行以下硬性拦截：
+
+*   **信号价格有效区间 (Price Valid Zone)**:
+    *   系统记录信号触发时的 `SignalPrice`。
+    *   开仓请求到达网关时，若 `abs(CurrentPrice - SignalPrice) / SignalPrice > MaxDeviation (default 0.5%)`，即使未达到策略止损，也必须判定为“信号已失效”，严禁追单。
+*   **信号时效检查 (Latency Kill-switch)**:
+    *   若 `Now() - SignalTimestamp > 500ms`，视为执行延迟过高，自动作废该次开仓指令。
+
+### 4.2 费率与持有成本保护 (Fee & Carrying Cost Protection)
+*   **规则**: 计算预期盈利时，必须扣除 **双倍手续费** (开仓+平仓)；对于 **合约 (Future)**，还必须额外扣除 **预估资金费率成本**。
+*   **多资产折算 (Fee Normalization)**:
+    *   若手续费并非以 Quote Asset (如 USDT) 结算（例如使用 BNB 抵扣），系统**必须**读取 `BNBUSDT` 的实时价格，将手续费折算为 USDT 后再参与 PnL 减法计算，严禁直接数值相减。
+*   **公式**: 
+    *   **Spot**: `ExpectedProfit < (OrderValue * (MakerFee + TakerFee)) * 1.5`
+    *   **Future**: `ExpectedProfit < (OrderValue * (MakerFee + TakerFee) + EstimatedFundingCost) * 1.5`
+*   **异常资金费率拦截 (Future Only)**: 若当前标的资金费率 (Funding Rate) 绝对值超过 **0.1%** (单次结算)，风控模块需强制检查持仓时长预估，防止因费率损耗导致本金快速缩水。
+
+### 4.5 开仓增强与确认协议 (Entry Enhancement & Confirmation)
+
+为了提高开仓质量，系统对 L3 级开仓指令应用以下增强逻辑：
+
+*   **开仓公平价校验 (Fair Value Check)**:
+    *   **规则**: `abs(LastPrice - MarkPrice) / MarkPrice <= 0.3%`。
+    *   **动作**: 若偏离度过高，系统强制将市价单 (Market) 降级为限价单 (Limit)，价格挂在 `MarkPrice * (1 + 0.1%)`，防止追涨杀跌。
+*   **信号确认窗口 (Signal Confirmation)**:
+    *   **逻辑**: 突破类策略触发后，引入 **动态观察窗 (Adaptive Window)**。
+    *   **配置**: 由策略根据其频率属性定义（默认：中频策略 3s，高频策略 100ms）。
+    *   **动态调整**: 若当前 ATR > 均值 2 倍，系统自动将观察窗延长 50%，以应对极端波动下的假突破。
+    *   **执行条件**: 观察期内 Mark Price 必须持续维持在触发位以上，若跌回则视为假突破，作废信号。
+*   **波动率头寸缩放 (Volatility Sizing)**:
+    *   **计算**: `PositionSize = AccountRiskAmount / (ATR * N)`。
+    *   **目的**: 波动大时买少点，止损远点；波动小时买多点，止损近点。确保每笔交易的“期望风险额”恒定。
 
 ---
 
-## 5. 风控配置模型
+## 5. 亏损平仓专项处理 (Loss-Exit Execution)
+
+亏损平仓被定义为 **“紧急防御动作”**，其执行逻辑不同于常规开仓。
+
+### 5.1 执行优先级
+*   **通道隔离**: 亏损平仓指令优先占用网关的高速通道。
+*   **指令类型**: 
+    *   默认使用 **Market Order**。
+    *   若使用 Limit Order，必须附带 **Price Buffer** (例如：卖出价 = Bid_Price * 0.99)，确保即时成交。
+
+### 5.2 流动性保护 (Liquidity Safety)
+*   **冲击成本预警**: 若平仓单价值 > 盘口 1% 深度的 20%，系统必须强制切换为 **TWAP 拆单模式**，在 N 秒内完成平仓，禁止单笔大额市价单直接撞单。
+
+### 5.3 熔断联动 (Circuit Breaker Linkage)
+*   **连续亏损熔断 (L1-CB)**: 亏损平仓后，`MaxConsecutiveLosses` 计数器加 1。达到阈值时触发全局停机。
+*   **权益强制校准**: 每一笔平仓结算后，必须立即通过 `Account.SyncEquity()` 刷新可用保证金，防止资产净值下降导致的后续违规。
+
+---
+
+## 6. 防扫单与防插针优化 (Anti-Whipsaw Optimization)
+
+为了减少因市场瞬间插针导致的“无辜止损”，系统引入以下平滑机制：
+
+### 6.1 标记价格优先原则
+*   **规则**: L3 级止损指令的触发判定**必须**使用 **Mark Price**。
+*   **理由**: 过滤掉单一交易所因盘口空虚产生的 Last Price 虚假插针。
+
+### 6.2 确认延迟 (Confirmation Buffer)
+*   **逻辑**: 当 Mark Price 首次穿过止损位时，系统不立即下单，而是开启一个 **Time Window (e.g., 1.5s)**。
+*   **执行条件**: 只有在窗口期结束时，价格仍未回调至止损位上方，才触发执行。
+*   **适用性**: 仅适用于非极端行情。若价格瞬间跌幅超过 3%，则绕过确认期立即平仓。
+
+### 6.3 波动率自适应止损 (ATR-Based SL)
+*   **动态调整**: 策略生成的 `StopLossPrice` 应参考当前标的的 **ATR 指标**。
+*   **风控限制**: 即使策略请求更紧的止损，风控层也会根据当前 1min 波动率强制保留一个“最小安全垫”，防止在震荡区间被频繁扫单。
+
+---
+
+## 7. 绩效风控与胜率管理 (Performance-Based Risk Control)
+
+系统不仅关注单笔订单的价格，还通过实时统计策略的**胜率 (Win Rate)** 和 **期望值 (Expectancy)** 来实现动态风险调整。
+
+### 7.1 核心评价指标
+*   **实时胜率 (Real-time Win Rate)**: 基于滑动窗口 (默认最近 20 笔交易) 计算的盈利次数占比。
+*   **盈亏比 (R/R Ratio)**: 实际结算的 `AvgProfit / AvgLoss`。
+*   **期望值 (Expectancy)**: `(WinRate * AvgProfit) - (LossRate * AvgLoss)`。
+    *   **硬性要求**: 任何处于激活状态的策略，其 50 笔交易后的滚动期望值必须为正数值。
+
+### 7.2 动态风险降级 (Adaptive Risk Scaling)
+*   **减半模式 (Half-Size Mode)**:
+    *   触发条件: 最近 10 笔交易胜率 < 30% 或 期望值跌破手续费成本。
+    *   动作: 强制将该策略的 `PositionSize` 压缩至原定的 50%。
+*   **冷静期 (Cooling-off Period)**:
+    *   触发条件: 触发 L1 级连续亏损熔断 (e.g., 5 连损)。
+    *   动作: 该策略强制停止 24 小时，需人工检视行情匹配度。
+
+### 7.3 胜率对止损的反馈机制
+*   **止损收紧**: 若胜率高但单笔回撤大，系统会自动建议或强制收紧 `StopLossPrice` 的 ATR 倍数。
+*   **保本触发**: 当盈利达到 RRR 1.2:1 后，系统自动开启“保本触发器”，将止损位移至 `EntryPrice`，确保该笔交易不再产生本金损失。
+
+---
+
+## 8. 风控配置模型
 
 ```go
 type RiskConfig struct {

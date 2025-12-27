@@ -57,6 +57,10 @@ graph TD
 1.  **Gateway (接入层) - 原子接口与限流控制**:
     *   **Spot Gateway**: 专职现货。
     *   **Future Gateway**: 专职合约。
+    *   **价格保护实现 (Price Protection Implementation)**:
+        *   **机制**: 严禁直接调用 `type=MARKET` 的原始市价单。
+        *   **模式**: 统一封装为 `type=LIMIT` + `timeInForce=IOC`。
+        *   **逻辑**: Gateway 接收逻辑层的 `ProtectPrice`，并将其作为 Limit 价格发送。利用交易所撮合引擎的 IOC 特性实现：高于保护价不成交、低于保护价即时成交的效果。
     *   **原子接口原则 (Atomic Interfaces)**:
         *   不进行底层自动降级。由上层逻辑明确决定调用 `PlaceOrderFast` (WS) 还是 `PlaceOrderReliable` (HTTPS)。
         *   所有接口调用必须返回精确的延迟指标与通道状态。
@@ -89,7 +93,28 @@ graph TD
     *   **Risk**: **分治策略**。
         *   `SpotRules`: 重点检查余额充足率、资产分散度。
         *   `FutureRules`: 重点检查 2x 杠杆限制、逐仓模式、强平距离。
-    *   **OMS**: 路由订单到对应的 Gateway，并处理订单生命周期。
+    *   **PerformanceMonitor (绩效监控器)**:
+        *   **职责**: 实时从 `Settlements` 表和内存事件流中聚合统计数据。
+        *   **反馈回路**: 为 `Risk` 模块提供“胜率”和“期望值”快照，驱动 L1/L2 级的动态降级决策。
+    *   **OMS**: 路由订单到对应的 Gateway，实现复杂的执行算法。
+
+### 1.4 执行算法 (Execution Algorithms)
+
+为了平衡成交质量与手续费成本，OMS 需支持以下执行模式：
+
+1.  **Passive Limit (被动挂单)**: 仅以 Maker 身份挂单，若价格偏离则由策略决定是否撤单。
+2.  **Limit-Chasing (限价追单)**:
+    *   **逻辑**: 先以 Limit 挂单。
+    *   **阈值**: 设定 `ExpireSeconds` (时间) 或 `PriceDeviation` (价格偏离)。
+    *   **动作**: 触发阈值后，立即撤单并转为 **Market Order** 强制补齐剩余数量，应对流动性枯竭。
+3.  **TWAP (时间加权平均)**: 大额订单在一段时间内均匀拆分执行，降低冲击成本。
+
+### 1.5 交易方向规范 (Directionality)
+
+| 市场类型 | 允许方向 | 说明 |
+| :--- | :--- | :--- |
+| **SPOT (现货)** | **LONG Only** | 仅支持 买入(Open) -> 卖出(Close)。 |
+| **FUTURE (合约)** | **LONG & SHORT** | 支持做多与做空。 |
 
 ### 1.3 外部事件分类 (External Events)
 
@@ -177,79 +202,64 @@ const (
 // SymbolConfig 定义交易对的静态属性
 type SymbolConfig struct {
     Name           string          // e.g., "BTCUSDT"
+    MarketType     string          // "SPOT" 或 "FUTURE"
     BaseAsset      string          // "BTC"
     QuoteAsset     string          // "USDT"
     
     // 风险配置 (Risk Protocol Enforcement)
-    MarginMode     string          // 强制 "ISOLATED"
-    MaxLeverage    decimal.Decimal // 强制 <= 2.0
-
-    // 费率配置 (优先使用 ConfiguredFee 进行回测/保守估算)
-    UseCustomFee   bool            // 是否强制使用手动费率
-    CustomMakerFee decimal.Decimal // 手动配置 Maker 费率 (e.g. 0.0002)
-    CustomTakerFee decimal.Decimal // 手动配置 Taker 费率 (e.g. 0.0005)
+    MarginMode     string          // 强制 "ISOLATED" (仅 FUTURE)
+    MaxLeverage    decimal.Decimal // 强制 <= 2.0 (仅 FUTURE)
     
-    // 精度配置
-    PricePrecision int32
-    QtyPrecision   int32
-    MinQty         decimal.Decimal
+    // ... 费率与精度配置 ...
 }
-
-// FeeCalculator 费率计算服务
-// 实盘时：优先读取 Exchange 返回的实际 Fee。
-// 回测/估算时：使用 SymbolConfig 中的 CustomFee。
 ```
 
 ### 2.2 资金与账户 (Account & Money)
 
 ```go
-// Account 聚合账户状态
-type Account struct {
-    Balances    map[string]decimal.Decimal // 余额表: "USDT" -> 10000.0
-    Positions   map[string]*Position       // 持仓表: "BTCUSDT" -> Pos
-    RiskState   *RiskState                 // 动态风控状态
-    
-    // 资金围栏
-    AllocatedCapital decimal.Decimal       // 配置的授权资金上限 (e.g. 5000)
-    InitialEquity    decimal.Decimal       // 经过 Re-baseline 的基准权益
-}
-
-// 资金变动请求
-type CapitalRequest struct {
-    Amount decimal.Decimal
-    Type   string // "DEPOSIT" or "WITHDRAW"
-}
+// ... Account 结构保持不变 ...
 
 // Position 独立仓位
 type Position struct {
     Symbol       string
-    Size         decimal.Decimal // 正数为多，负数为空
+    MarketType   string          // "SPOT" 或 "FUTURE"
+    Size         decimal.Decimal // 正数为多，负数为空 (现货仅支持正数)
     EntryPrice   decimal.Decimal // 平均开仓价
     UnrealizedPnL decimal.Decimal // 未实现盈亏 (需包含预估手续费)
+    
+    // 合约专用字段 (Future Only)
+    AccruedFunding  decimal.Decimal // 累计已产生/预估资金费率支出/收入 (现货恒为 0)
+    LiquidationPrice decimal.Decimal // 强平价
 }
 ```
 
 ### 2.3 盈亏模型与结算 (PnL & Settlement)
 
-系统采用 **FIFO (先进先出)** 原则进行持仓管理和盈亏结算，以确保回测与实盘的精确一致。
+系统采用 **FIFO (先进先出)** 原则进行持仓管理和盈亏结算。
 
-#### 2.3.1 双轨盈亏 (Dual PnL)
-1.  **Estimated PnL (风控/预估用)**:
-    *   使用 `SymbolConfig` 中的配置费率 (e.g. Maker 0.05%)。
-    *   用途: 下单前计算预期收益、风险敞口。
-2.  **Realized PnL (账务/报表用)**:
-    *   使用交易所返回的 **真实 Fee**。
-    *   用途: 每次平仓成交后生成结算单，计入账户净值。
+#### 2.3.1 盈亏分类处理
+1.  **Spot (现货)**:
+    *   **PnL = (CurrentPrice - EntryPrice) * Size - TotalFees**
+    *   无资金费率，不支持空单（逻辑层拦截）。
+2.  **Future (合约)**:
+    *   **PnL = (CurrentPrice - EntryPrice) * Size - TotalFees + AccruedFunding**
+    *   必须计入资金费率。
 
-#### 2.3.2 FIFO 结算队列
-为了计算准确的持有时长和收益归因，`Position` 内部维护一个买入队列 (`Legs`)。
+#### 2.3.2 统一结算中心 (Unified Settlement Hub)
+系统不区分现货与合约的物理表，统一使用 `settlements` 表记录结果，以实现全账户净值归因。
 
-*   **开仓 (Buy/Long)**: 新生成一个 `PositionLeg` (EntryPrice, Qty, Time) 入队。
-*   **平仓 (Sell/Short)**:
-    *   从队列头部取出最早的 `Leg`。
-    *   若平仓数量 < Leg数量: 部分结算，更新 Leg 剩余数量。
-    *   若平仓数量 >= Leg数量: 完全结算该 Leg，计算该部分的持有时间 (`CloseTime - OpenTime`)，并继续处理下一条 Leg。
-    *   **生成 `Settlement` 记录**: 包含 `RealizedPnL`, `Duration`, `ROI`。
+*   **差异化处理**:
+    *   **MarketType**: 核心区分标识。
+    *   **FundingFee**: 合约类型计入实际值，现货类型恒为 0。
+    *   **Side**: 合约支持 LONG/SHORT，现货仅支持 LONG。
+*   **JSONB Metadata**: 存储特定市场类型的非共有数据（如合约的实际使用杠杆、强平价格快照等）。
+
+#### 2.3.3 FIFO 结算队列
+...
+    *   **生成 `Settlement` 记录**: 
+        *   `RealizedPnL`: 实际盈亏。
+        *   `FundingFees`: (仅合约) 结算对应的资金费。
+        *   `Duration`, `ROI`。
 
 ---
 
@@ -294,10 +304,28 @@ type Position struct {
 *   **状态校准 (Snapshot)**: 
     *   AI 每 30 秒广播一次全量风险状态快照，用于修复可能丢失的增量事件。
 
+### 4.3 冗余数据通道 (Redundant Data Channels)
+*   **WS 断连兜底 (WebSocket Polling Fallback)**:
+    *   **背景**: 交易所 WebSocket 可能出现“假死”状态（连接正常但无推送）。
+    *   **机制**: Gateway 必须实现 REST Polling 守护线程。
+    *   **频率**: 每 **30秒** 主动拉取一次 `/openOrders` 和 `/myTrades`。
+    *   **比对**: 将 API 返回结果与本地数据库比对。若发现 WS 未推送的成交，立即补录并触发 `WARN` 告警。
+    *   **目的**: 确保账户状态的最终一致性，防止“幻影持仓”。
+
+### 4.4 启动与恢复 (Startup & Recovery)
+*   **僵尸单处理 (Zombie Order Reconciliation)**:
+    *   **场景**: 系统崩溃或重启时，内存中可能残留 `NEW/PENDING` 状态的订单。
+    *   **启动流程**:
+        1.  `OnStartup()`: 扫描数据库中所有 `status IN ('NEW', 'PENDING')` 的订单。
+        2.  **反查**: 遍历这些订单，调用交易所 `GetOrder` 接口。
+        3.  **同步**: 根据返回结果更新本地状态（如改为 `FILLED` 或 `CANCELED`）。
+        4.  **撤单**: 对于无法确认状态或超过有效期的挂单，主动发送 `CancelOrder` 确保归零风险。
+
 ---
 
 ## 5. 文档索引
 
 *   **风控协议**: 详见 [RISK_PROTOCOL.md](./RISK_PROTOCOL.md) (核心整改项)
+*   **安全协议**: 详见 [SECURITY_PROTOCOL.md](./SECURITY_PROTOCOL.md) (资产安全基线)
 *   **开发计划**: 详见 [ROADMAP.md](./ROADMAP.md)
 *   **Phase 1 细节**: 详见 [plans/PHASE_1_DETAIL.md](./plans/PHASE_1_DETAIL.md)
