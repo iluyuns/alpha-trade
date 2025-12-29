@@ -44,6 +44,10 @@
 - [ ] **Rule: PositionLimit**: 仓位限制。
 - [ ] **Tests**: 编写核心风控的单元测试 (Unit Tests)。
 
+### 1.5 可观测性基建 (Observability)
+- [ ] **Tracing**: 搭建 `pkg/telemetry` 基础骨架。
+- [ ] **Metrics**: 定义核心业务指标 (PnL, Exposure)。
+
 ---
 
 ## 🔬 Phase 2: 回测系统构建 (Simulator)

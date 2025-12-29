@@ -12,37 +12,16 @@
 
 ### 1.1 核心分层与数据流
 
+> 💡 **详细全链路驱动图已移至独立文件**: [docs/architecture_flow.md](./architecture_flow.md)
+
 ```mermaid
 graph TD
-    %% External Inputs
-    Exchange["交易所 (Binance/OKX)"] 
-    News["宏观数据源"] -->|HTTP| GW_News["新闻网关 (Go)"]
-
-    %% Gateway Isolation
-    Exchange <-->|/api/v3| GW_Spot["现货网关 (Go)"]
-    Exchange <-->|/fapi/v1| GW_Fut["合约网关 (Go)"]
-    
-    %% Internal Processing
-    GW_Spot -->|Data| MQ((NATS JetStream))
-    GW_Fut -->|Data| MQ
-    GW_News -->|Raw News| MQ
-
-    %% AI Logic (LangGraph)
-    MQ -->|News| AI_Agent["AI Agent (Python/LangGraph)"]
-    AI_Agent -->|Decision/Heartbeat| MQ
-
-    MQ --> Strategy["策略引擎 (Go)"]
-    Strategy -->|Signal| Risk["风控核心 (Go)"]
-    
-    %% Decision Making
-        Risk <-->|Read/Write| RiskState[("风控状态")]
-        Risk --x|Reject| Log["审计日志"]
-
-    Risk -->|Approved Order| OMS["订单管理 (OMS)"]
-    
-    %% Execution
-    OMS -->|Spot Order| GW_Spot
-    OMS -->|Future Order| GW_Fut
+    %% 此处保留高层级概览，详细链路参考上述 .mmd 文件
+    Exchange["交易所"] <--> GW["网关层"]
+    GW --> MQ["NATS 消息中心"]
+    MQ <--> AI["AI 决策层 (Python)"]
+    MQ --> Logic["Go 交易核心"]
+    Logic --> GW
 ```
 
 ### 1.2 目录结构 (Monorepo)
@@ -181,6 +160,51 @@ graph TD
     "timestamp": 1703310000
 }
 ```
+
+### 1.6 可观测性架构 (Observability)
+
+系统采用 **OpenTelemetry (OTEL)** 作为统一标准，解耦业务代码与具体的监控后端。
+
+1.  **Tracing (Jaeger/Tempo)**: 
+    *   **TraceID 穿透**: 通过 NATS Header 将 `TraceID` 从 Python AI 侧传递至 Go 核心侧。
+    *   **分级采样策略 (Tiered Sampling)**: 
+        *   **全量 Metrics**: 对所有行情 Tick 进行计数与延迟统计 (Prometheus)。
+        *   **条件 Tracing**: 仅当策略生成信号、触发风控检查、订单执行或发生 Error 时，才开启全链路 Span 追踪。
+    *   **采样率**: 生产环境建议设置概率采样（如仅追踪 0.1% 的非交易行情，100% 追踪交易信号）。
+2.  **Metrics (Prometheus)**:
+    *   **业务指标**: 实时账户净值 (Equity)、各标的持仓风险 (Exposure)、限流器权重消耗。
+    *   **性能指标**: NATS 消息积压量、Go GC 延迟、网关请求 RTT。
+
+### 1.7 硬件环境参考 (Hardware Requirements)
+
+针对启动阶段，系统采用 **精简模式 (Lean Mode)** 部署：
+
+| 配置项 | 推荐规格 | 说明 |
+| :--- | :--- | :--- |
+| **CPU** | 2 Core | 满足 Go 并发与 Python AI 逻辑处理。 |
+| **内存** | 4 GB | **最低建议**。2GB 无法提供足够的安全冗余。 |
+| **存储** | 40 GB+ | 优先选择 SSD。 |
+| **监控** | 外部平台 | 减少本地 IO 压力，使用 Grafana Cloud 或云厂商免费额度。 |
+
+**资源限制建议 (Docker Limit)**:
+*   **Go Core**: 1024MB (GOMEMLIMIT=800MB)
+*   **Python AI**: 1536MB
+*   **PostgreSQL**: 512MB
+*   **NATS**: 256MB
+
+### 1.8 数据流驱动模式 (Event-Driven Patterns)
+
+系统由两种核心事件流驱动，通过 **NATS** 实现物理隔离与逻辑协同：
+
+1.  **极速行情流 (The Fast Path)**:
+    *   **驱动源**: 交易所 WebSocket (Ticks/Candles)。
+    *   **链路**: `Gateway` -> `NATS` -> `Strategy` -> `Risk` -> `OMS`。
+    *   **特点**: 纳秒级响应，仅处理数值计算。
+
+2.  **AI 智能偏见流 (The Smart Path)**:
+    *   **驱动源**: RSS/Twitter -> `NewsGateway`。
+    *   **链路**: `NewsGateway` -> `NATS (market.news)` -> `Python AI Agent` -> `NATS (ai.decision)` -> `Go Strategy/Risk`。
+    *   **特点**: 秒级响应，负责提供“交易方向过滤”和“全局风险熔断”。
 
 ---
 
