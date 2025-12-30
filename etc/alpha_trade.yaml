@@ -1,3 +1,26 @@
 Name: alpha_trade
 Host: 0.0.0.0
 Port: 8888
+
+# 日志配置 (Error Only Mode)
+Log:
+  ServiceName: alpha-trade-core
+  Mode: file
+  Path: logs/core
+  Level: error # 仅记录 error 及以上级别，屏蔽 info
+  Stat: false  # 关闭每分钟的资源统计信息输出
+  Compress: true
+  KeepDays: 7
+
+# 监控配置
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9091
+  Path: /metrics
+
+# 链路追踪配置 (Tail-Sampling Mode)
+Telemetry:
+  Name: alpha-trade-core
+  Endpoint: http://otel-collector:4318/v1/traces # 指向 Collector
+  Sampler: 1.0 # 应用层全量上报，由 Collector 决定是否丢弃
+  Batcher: jaeger

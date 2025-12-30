@@ -1,0 +1,33 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  # 尾部采样逻辑
+  tail_sampling:
+    decision_wait: 10s # 等待 10 秒确保 Trace 完整
+    num_traces: 100
+    expected_new_traces_per_sec: 10
+    policies:
+      - name: error-policy # 策略 1: 只要状态是 ERROR，就采集
+        type: status_code
+        status_code: {status_codes: [ERROR]}
+      - name: probabilistic-policy # 策略 2: 正常的请求按 10% 采样
+        type: probabilistic
+        probabilistic: {sampling_percentage: 10}
+
+exporters:
+  otlp:
+    endpoint: jaeger:4317 # 发送到 Jaeger
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [tail_sampling]
+      exporters: [otlp]
+
