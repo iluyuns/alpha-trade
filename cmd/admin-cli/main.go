@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -54,4 +53,3 @@ func handleResetPasskey(user string, force bool) {
 	fmt.Println("Success. Passkeys deleted.")
 	fmt.Println("Magic Link: https://api.alpha-trade.internal/auth/magic-register?token=xyz123")
 }
-

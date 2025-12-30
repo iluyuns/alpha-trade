@@ -1,0 +1,31 @@
+syntax = "v1"
+
+info (
+	title:   "System API"
+	desc:    "System API"
+	version: "v1"
+)
+
+type (
+	SystemInfoReq  {}
+	SystemInfoResp {
+		Version    string `json:"version"` // 版本号
+		BuildTime  string `json:"build_time"` // 构建时间
+		CommitHash string `json:"commit_hash"` // 提交哈希
+	}
+)
+
+@server (
+	prefix:     /api/v1/system
+	group:      system
+	tags:       "System"
+	middleware: Auth,Passkey
+)
+service alpha_trade {
+	@doc (
+		summary: "Get System Info"
+	)
+	@handler SystemInfo
+	get /info (SystemInfoReq) returns (SystemInfoResp)
+}
+

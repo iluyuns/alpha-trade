@@ -1,0 +1,22 @@
+syntax = "v1"
+
+info (
+	title:        "alpha-trade API"
+	description:  "alpha-trade API Swagger 文档"
+	version:      "v1"
+	wrapCodeMsg:  "true" // 开启 swagger 生成时使用 code-msg 格式包裹
+	consumes:     "application/json" // 默认请求内容类型，可配置多个用逗号分隔
+	produces:     "application/json" // 默认响应内容类型，可配置多个用逗号分隔
+	schemes:      "http,https,ws,wss" // 支持协议(http/https/ws/wss)，可配置多个
+	host:         "127.0.0.1" // API服务主机地址(不带协议头)
+	basePath:     "api"
+	contactName:  "iluyuns" // 技术支持联系人姓名
+	contactURL:   "https://minis.app/iluyuns" // 联系人相关链接
+	contactEmail: "iluyun@e.minis.app" // 联系人邮箱
+)
+
+import (
+	"./passkey/passkey.api"
+	"./system/system.api"
+)
+

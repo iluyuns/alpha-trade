@@ -289,8 +289,16 @@ type Position struct {
 
 ## 3. 核心开发规范
 
-### 3.1 精度与类型
-*   **金额/价格**: 严禁 `float64`。必须使用 `github.com/shopspring/decimal`。
+### 3.1 数据库驱动模型 (Database-First Models) - [强制]
+**严禁手动创建或修改 `internal/model` 中的实体结构体。** 系统采用“数据库驱动”模式：
+
+1.  **流程**: 编写 SQL 迁移文件 $\rightarrow$ 执行 `migrate up` $\rightarrow$ 执行 `make model`。
+2.  **工具**: 使用 `goctl model pg` 从数据库 Schema 自动反向生成 Go 结构体。
+3.  **好处**: 确保数据库约束（如 `NOT NULL`, `UNIQUE`）与代码逻辑完全同步，消除手工录入误差。
+4.  **扩展**: 如需增加业务逻辑方法，请在 `internal/model` 下创建同名的 `.custom.go` 文件，严禁修改自动生成的 `.go` 文件。
+
+### 3.2 精度与类型
+*   **金额/价格**: 严禁 `float64`。必须使用 `github.com/shopspring/decimal`。自动生成的 Model 已配置为适配 `decimal` 类型。
 *   **时间**: 统一使用 `time.Time`。在回测中，**严禁**调用 `time.Now()`，必须使用 `Event.Time`。
 
 ### 3.2 多标的循环
