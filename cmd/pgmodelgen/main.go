@@ -216,15 +216,14 @@ func introspect(db *sql.DB, schema, table string) (tableMeta, error) {
 	}
 
 	importSet := map[string]bool{
-		`"context"`:      true,
-		`"database/sql"`: true,
-		`"fmt"`:          true,
-		`"strings"`:      true,
-		`orderBy "gitea.allgoodgame.com/saas-backend/saas-common/model/order-by"`: true,
-		`"github.com/Masterminds/squirrel"`:                                       true,
-		`"github.com/zeromicro/go-zero/core/stores/builder"`:                      true,
-		`"github.com/zeromicro/go-zero/core/stores/sqlx"`:                         true,
-		`"github.com/zeromicro/go-zero/core/stringx"`:                             true,
+		`"context"`:                         true,
+		`"database/sql"`:                    true,
+		`"fmt"`:                             true,
+		`"strings"`:                         true,
+		`"github.com/Masterminds/squirrel"`: true,
+		`"github.com/zeromicro/go-zero/core/stores/builder"`: true,
+		`"github.com/zeromicro/go-zero/core/stores/sqlx"`:    true,
+		`"github.com/zeromicro/go-zero/core/stringx"`:        true,
 	}
 	for _, c := range colModels {
 		if c.GoType == "time.Time" {
@@ -472,14 +471,10 @@ func (m *default{{.Meta.TypeName}}Model) FindOne(ctx context.Context{{range .Met
 	query := fmt.Sprintf("select %s from %s where {{range $i, $pk := .Meta.PKColumns}}{{if $i}} and {{end}}{{$pk}} = ${{Add $i 1}}{{end}} limit 1", {{.Meta.LowerTypeName}}Rows, m.table)
 	var resp {{.Meta.TypeName}}
 	err := m.conn.QueryRowCtx(ctx, &resp, query{{- range .Meta.PKParams}}, {{.Name}}{{- end}})
-	switch err {
-	case nil:
-		return &resp, nil
-	case sqlx.ErrNotFound:
-		return nil, ErrNotFound
-	default:
+	if err != nil {
 		return nil, err
 	}
+	return &resp, nil
 }
 
 func (m *default{{.Meta.TypeName}}Model) Insert(ctx context.Context, data *{{.Meta.TypeName}}) (sql.Result, error) {
@@ -641,30 +636,6 @@ func (m *default{{.Meta.TypeName}}Model) buildPageQuery(builder squirrel.SelectB
 		orderBy = "{{index .Meta.PKColumns 0}}"
 	}
 	return builder.OrderBy(fmt.Sprintf("%s %s", orderBy, orderType))
-}
-
-// buildPageOrderByQuery 构建多排序的分页条件
-func (m *default{{.Meta.TypeName}}Model) buildPageOrderByQuery(builder squirrel.SelectBuilder, offset int64, limit int64, orderByItems []orderBy.OrderBy) squirrel.SelectBuilder {
-	builder = builder.Offset(uint64(offset))
-	if limit > 0 {
-		builder = builder.Limit(uint64(limit))
-	}
-	if len(orderByItems) == 0 {
-		return builder.OrderBy("{{index .Meta.PKColumns 0}} DESC")
-	}
-	var orderType string
-	for _, orderItem := range orderByItems {
-		if !stringx.Contains({{.Meta.LowerTypeName}}FieldNames, orderItem.Field) {
-			continue
-		}
-		if orderItem.IsAsc {
-			orderType = "ASC"
-		} else {
-			orderType = "DESC"
-		}
-		builder = builder.OrderBy(fmt.Sprintf("%s %s", orderItem.Field, orderType))
-	}
-	return builder
 }
 
 // execResultCtxWithSession 根据sqlizer生产sql执行并返回结果

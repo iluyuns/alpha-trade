@@ -1,9 +1,11 @@
 SERVICE_NAME = alpha-trade
 
 TEMPLATE_LINK = https://github.com/iluyuns/go-zero-template
-DB_URL = postgres://postgres:123456@192.168.0.203:5432/alpha_trade?sslmode=disable
-TABLE = alpha_trade
-CompositePrimaryTable = alpha_trade_composite_primary
+DB_URL = postgres://alpha:alpha_pwd@localhost:5432/alpha_trade?sslmode=disable
+comma := ,
+empty :=
+space := $(empty) $(empty)
+TABLES = users,webauthn_credentials,exchange_accounts,audit_logs,orders,executions,risk_records,asset_snapshots,strategy_configs,settlements
 
 API_FILE = api/_.api
 API_DIR = ./
@@ -33,8 +35,8 @@ migrate:
 # 生成数据库实体和部分方法
 .PHONY: model
 model:
-	@echo ">>> generate model skeleton..."
-	goctl model pg datasource --url $(DB_URL) --table $(TABLE) --dir ./internal/model --ignore-columns="" --style go_zero --remote $(TEMPLATE_LINK)
-	@echo ">>> generate composite primary key supported model ($(CompositePrimaryTable))..."
-	go run ./tools/pgmodelgen --url $(DB_URL) --schema public --table "$(CompositePrimaryTable)" --dir ./internal/model
+	@echo ">>> generate all models using internal pgmodelgen..."
+	@for table in $(subst $(comma),$(space),$(TABLES)); do \
+		go run ./cmd/pgmodelgen --url $(DB_URL) --schema public --table $$table --dir ./internal/model; \
+	done
 	@echo ">>> generate model file success"

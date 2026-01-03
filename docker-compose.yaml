@@ -13,19 +13,6 @@ services:
       - nats_data:/data
     restart: always
 
-  # AI 决策 Agent
-  ai-agent:
-    build:
-      context: ./ai-agent
-      dockerfile: Dockerfile
-    container_name: alpha-trade-ai-agent
-    depends_on:
-      - nats
-    environment:
-      - NATS_URL=nats://nats:4222
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY} # 从宿主机 .env 文件读取
-    restart: always
-
   # RSSHub - 社交媒体转换引擎
   rsshub:
     image: diygod/rsshub:latest
@@ -56,37 +43,19 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-alpha}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-alpha_pwd}
-      - POSTGRES_DB=${POSTGRES_DB:-alpha_trade}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
       - TZ=UTC
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./sql/pg:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alpha} -d ${POSTGRES_DB:-alpha_trade}" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 3s
       retries: 20
 
-  # KLine Loader - 一次性导入日K到 PostgreSQL（可按环境变量控制时间范围）
-  kline-loader:
-    build:
-      context: ./ai-agent
-      dockerfile: Dockerfile
-    container_name: alpha-trade-kline-loader
-    depends_on:
-      - postgres
-    environment:
-      - PG_DSN=postgresql://${POSTGRES_USER:-alpha}:${POSTGRES_PASSWORD:-alpha_pwd}@postgres:5432/${POSTGRES_DB:-alpha_trade}?sslmode=disable
-      - KLINE_EXCHANGE=${KLINE_EXCHANGE:-okx}
-      - KLINE_SYMBOL=${KLINE_SYMBOL:-BTC-USDT}
-      # 支持: 15m / 1H / 4H / 1D（OKX bar）
-      - KLINE_INTERVAL=${KLINE_INTERVAL:-1D}
-      - KLINE_START_DATE=${KLINE_START_DATE:-2025-01-01}
-      - KLINE_END_DATE=${KLINE_END_DATE:-2025-12-31}
-    command: [ "python", "tools/import_klines_to_pg.py" ]
-    restart: "no"
 
   # Jaeger - 分布式链路追踪
   jaeger:

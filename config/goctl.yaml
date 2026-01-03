@@ -163,3 +163,9 @@ model:
     tinyblob:
       null_type: sql.NullString
       type: string
+    inet:
+      null_type: sql.NullString
+      type: string
+    bytea:
+      null_type: sql.NullString
+      type: "[]byte"

@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS user_access_logs;
 DROP TABLE IF EXISTS settlements;
 DROP TABLE IF EXISTS strategy_configs;
 DROP TABLE IF EXISTS asset_snapshots;
@@ -6,8 +7,5 @@ DROP TABLE IF EXISTS executions;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS exchange_accounts;
-DROP TABLE IF EXISTS menus;
-DROP TABLE IF EXISTS role_permissions;
-DROP TABLE IF EXISTS permissions;
 DROP TABLE IF EXISTS webauthn_credentials;
 DROP TABLE IF EXISTS users;

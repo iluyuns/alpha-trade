@@ -24,7 +24,9 @@ func NewSystemInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) SystemI
 }
 
 func (l *SystemInfoLogic) SystemInfo(req *types.SystemInfoReq) (resp *types.SystemInfoResp, err error) {
-	// todo: add your logic here and delete this line
-
-	return
+	return &types.SystemInfoResp{
+		Version:    "v1.0.0",
+		BuildTime:  "2026-01-01",
+		CommitHash: "dev",
+	}, nil
 }

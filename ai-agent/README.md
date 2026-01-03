@@ -1,6 +1,6 @@
 # Alpha-Trade AI Agent (Phase 1)
 
-基于 LangGraph 和 Gemini 1.5 Flash 的交易辅助决策智能体，负责非结构化信息的量化与逻辑推演。
+基于 CrewAI 和 Gemini 1.5 Flash 的多智能体协作决策系统，负责非结构化信息的量化与逻辑推演。
 
 ## 1. 核心职责边界 (Architecture Boundaries)
 
@@ -16,19 +16,16 @@
 - **Risk Integration (指令执行)**: 
     - 订阅 `AI.DECISION`，将 AI 建议转化为风控参数（如动态调整杠杆上限、方向偏好控制）。
 
-### 1.2 AI-Agent 侧 (The "Reasoning" Layer)
-- **Content Expansion (全量抓取)**: 
-    - **主选**: Jina Reader (`r.jina.ai`) 将原始 URL 转换为 LLM 易读的 Markdown。
-    - **备选**: 集成 `Firecrawl` 或本地 `Trafilatura` 库，用于绕过复杂反爬并实现本地化的 HTML 降噪。
-- **Cognitive Analysis (深度推演)**: 
-    - **隐喻与黑话识别**: 结合内置 **"Crypto-Knowledge-Base"** 识别 Musk 发图、CZ 推文背后的币种关联。
-    - **广告与噪音过滤**: 自动识别并剔除文中赞助商链接、SEO 堆砌及无关社交引导，确保 AI 仅分析核心事实。
-    - **多源交叉验证**: 若 5min 内只有单一源报道重大新闻，标记为 Low Confidence。
-- **Knowledge Base (知识库构建)**:
-    - **Layer 1 (Entity Map)**: 常驻内存的别名表（如 `大饼 -> BTC`, `V神 -> Vitalik`），详见 `assets/knowledge.json`。
-    - **Layer 2 (Historical Events)**: 重大历史事件库（如 `FTX 崩溃`, `ETF 审批`），包含影响权重与模式，详见 `assets/major_events.json`。
-    - **Layer 3 (Context RAG)**: (中长期) 接入向量数据库，存储项目白皮书、历史极端行情复盘资料。
-- **结构化输出**: 将 Gemini 的推理转化为精确 JSON（Score, Decision, Confidence）。
+### 1.2 AI-Agent 侧 (The "Reasoning" Layer - Powered by CrewAI)
+系统引入 **Multi-Agent Collaboration** 模式，由多个专业 Agent 协作完成任务：
+- **Scraper Agent (内容专家)**: 
+    - 使用 Jina Reader 获取网页深度内容，识别并清洗广告噪音。
+- **Analyst Agent (量化分析师)**: 
+    - 结合加密货币黑话知识库，对内容进行深度推演和情绪建模。
+- **Strategist Agent (决策官)**: 
+    - 汇总各方信息，最终输出结构化的 `Score` 和 `Decision`。
+- **Knowledge Base (知识库支持)**:
+    - 别名表与历史重大事件库（`assets/` 目录下）。
 
 ## 2. 待开发清单与难度评估
 

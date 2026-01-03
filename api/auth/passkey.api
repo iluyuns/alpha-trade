@@ -1,0 +1,105 @@
+syntax = "v1"
+
+info (
+	title:   "Passkey Security API"
+	desc:    "WebAuthn/Passkey 安全接口：支持 2FA、提级认证 (Step-up Auth) 及凭证管理"
+	author:  "Alpha-Trade Architect"
+	version: "v1.1"
+)
+
+type (
+	// AddBeginRequest 发起绑定：在登录状态下添加新的 Passkey
+	AddBeginRequest {
+		Label string `json:"label"` // 硬件设备备注名 (e.g. YubiKey 5C, MacBook TouchID)
+	}
+	// AddBeginResponse 返回 WebAuthn 注册选项
+	AddBeginResponse {
+		Options string `json:"options"` // 序列化后的 PublicKeyCredentialCreationOptions
+	}
+	// AddFinishRequest 提交绑定凭证
+	AddFinishRequest {
+		Response string `json:"response"` // 浏览器返回的 PublicKeyCredential
+	}
+	// AddFinishResponse 绑定结果
+	AddFinishResponse {
+		Success bool `json:"success"`
+	}
+	// VerifyBeginRequest 发起验证：用于 2FA 或提级认证
+	// 对于 2FA，可能通过 Session 或临时令牌识别用户
+	VerifyBeginRequest {
+		Action string `json:"action,optional"` // 触发验证的行为类型 (e.g. "2fa", "withdraw", "update_risk")
+	}
+	// VerifyBeginResponse 返回 WebAuthn 认证选项
+	VerifyBeginResponse {
+		Options string `json:"options"` // 序列化后的 PublicKeyCredentialRequestOptions
+	}
+	// VerifyFinishRequest 提交认证签名
+	VerifyFinishRequest {
+		Response string `json:"response"` // 浏览器返回的 AuthenticatorAssertionResponse
+	}
+	// VerifyFinishResponse 验证结果
+	VerifyFinishResponse {
+		VerifiedToken string `json:"verifiedToken"` // 验证成功后的短期令牌，用于执行受保护的操作
+	}
+	// ListResponse 凭证列表
+	CredentialItem {
+		Id         int64  `json:"id"`
+		Label      string `json:"label"`
+		Aaguid     string `json:"aaguid"`
+		LastUsedAt int64  `json:"lastUsedAt"`
+		CreatedAt  int64  `json:"createdAt"`
+	}
+	ListResponse {
+		List []CredentialItem `json:"list"`
+	}
+	// RemoveRequest 移除凭证
+	RemoveRequest {
+		Id int64 `json:"id"`
+	}
+)
+
+// 需要登录授权的接口 (凭证管理与绑定)
+@server (
+	group:      auth/passkey
+	prefix:     /api/v1/auth/passkey
+	tags:       "Passkey 安全"
+	middleware: Auth
+)
+service alpha_trade {
+	@doc (
+		summary: "绑定新的 Passkey (需已登录)"
+	)
+	@handler PasskeyAddBegin
+	post /add/begin (AddBeginRequest) returns (AddBeginResponse)
+
+	@doc (
+		summary: "完成 Passkey 绑定"
+	)
+	@handler PasskeyAddFinish
+	post /add/finish (AddFinishRequest) returns (AddFinishResponse)
+
+	@doc (
+		summary: "获取已绑定的 Passkey 列表"
+	)
+	@handler PasskeyList
+	get /list returns (ListResponse)
+
+	@doc (
+		summary: "移除指定的 Passkey"
+	)
+	@handler PasskeyRemove
+	delete /remove (RemoveRequest) returns (AddFinishResponse)
+
+	@doc (
+		summary: "发起 Passkey 挑战 (2FA/提级认证)"
+	)
+	@handler PasskeyVerifyBegin
+	post /verify/begin (VerifyBeginRequest) returns (VerifyBeginResponse)
+
+	@doc (
+		summary: "提交 Passkey 验证结果"
+	)
+	@handler PasskeyVerifyFinish
+	post /verify/finish (VerifyFinishRequest) returns (VerifyFinishResponse)
+}
+

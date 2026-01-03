@@ -27,7 +27,7 @@ graph TD
 ### 1.2 目录结构 (Monorepo)
 
 *   `/internal`: Go 核心代码（交易、风控、OMS）。
-*   `/ai-agent`: Python AI 服务（基于 LangGraph 和 Gemini 3）。
+*   `/ai-agent`: Python AI 服务（基于 CrewAI 和 Gemini 3）。
 *   `/docs`: 全局文档与协议。
 *   `/pkg`: 公共工具库。
 
@@ -62,7 +62,7 @@ graph TD
         *   **集成 Gemini 3**: 负责对抓取到的完整文本进行逻辑推演。
         *   **异步驱动架构 (MQ-Driven)**: 
             *   AI 分析结果通过 **消息队列 (MQ/EventBus)** 发送，实现 AI 层与交易层的彻底解耦。
-            *   **实时反馈流**: `Multi-Source (Go GW)` -> `MQ (MARKET.NEWS)` -> `LangGraph (AI Agent)` -> `MQ (AI.DECISION)` -> `RiskManager (Go)`.
+            *   **实时反馈流**: `Multi-Source (Go GW)` -> `MQ (MARKET.NEWS)` -> `CrewAI (Multi-Agent Crew)` -> `MQ (AI.DECISION)` -> `RiskManager (Go)`.
         *   **控制指令集**:
             *   **全局熔断**: 当得分极低 (e.g., < -0.9) 时，自动通过 MQ 广播 `Global_Halt` 信号，停止所有标的新开仓。
             *   **方向导向 (Directional Bias)**: 根据得分控制策略的开仓方向（仅多、仅空或双向）。
@@ -327,7 +327,7 @@ type Position struct {
 
 ### 4.2 AI 决策层 Fail-safe 机制
 *   **心跳监测 (Heartbeat)**: 
-    *   AI 服务 (LangGraph) 每 5 秒发送一次心跳消息至 MQ。
+    *   AI 服务 (CrewAI) 每 5 秒发送一次心跳消息至 MQ。
     *   Go 核心层实时监听。
 *   **安全兜底 (Safe-Default Mode)**:
     *   若 Go 核心层超过 **30 秒** 未收到 AI 心跳，自动判定 AI 决策层失联。

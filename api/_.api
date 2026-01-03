@@ -16,7 +16,7 @@ info (
 )
 
 import (
-	"./passkey/passkey.api"
+	"./auth/auth.api"
 	"./system/system.api"
 )
 

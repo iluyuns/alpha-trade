@@ -19,7 +19,7 @@ type (
 	prefix:     /api/v1/system
 	group:      system
 	tags:       "System"
-	middleware: Auth,Passkey
+	middleware: Auth, MFA // 需要登录且完成 MFA
 )
 service alpha_trade {
 	@doc (

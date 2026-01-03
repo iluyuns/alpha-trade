@@ -4,6 +4,13 @@
 
 ---
 
+## ⏱ 下一步（按小时）与执行入口
+
+- 立即执行入口: 详见 [plans/PHASE_1_EXEC_PLAN.md](./plans/PHASE_1_EXEC_PLAN.md)（Day 1: H0-H8 聚焦 `domain` 与 `risk`）。
+- 当前应开发区域: `internal/domain/{model,port}` 与 `internal/logic/risk`（CircuitBreaker、PositionLimit）。
+
+---
+
 ## 📅 总体进度概览
 
 | 阶段 | 核心目标 | 状态 | 预计周期 | 关键产出 |
@@ -20,10 +27,10 @@
 **目标**: 建立不依赖任何外部组件的纯净核心。无论回测还是实盘，都完全复用此层代码。
 
 ### 1.1 项目初始化
-- [ ] 初始化 `go.mod` (Module: `alpha-trade`)
-- [ ] 创建标准目录结构 (`cmd`, `internal`, `configs`, `docs`)
+- [x] 初始化 `go.mod` (Module 已存在)
+- [x] 创建标准目录结构 (`cmd`, `internal`, `docs` 已存在；配置目录采用 `config/`)
 - [ ] 引入基础依赖 (`shopspring/decimal`, `zap`, `viper`)
-- [ ] **安全基建**: 引入 `go-webauthn` 并设计用户表结构 (支持 Passkeys)。
+- [ ] **安全基建**: 引入 `go-webauthn` 并设计用户表结构 (支持 Passkeys)。（数据库表已存在；SDK 集成与校验链路待落地）
 
 ### 1.2 领域模型定义 (`internal/domain/model`)
 - [ ] **Money**: 封装 `decimal.Decimal`，处理金额/数量计算。

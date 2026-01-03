@@ -24,3 +24,8 @@ Telemetry:
   Endpoint: http://otel-collector:4318/v1/traces # 指向 Collector
   Sampler: 1.0 # 应用层全量上报，由 Collector 决定是否丢弃
   Batcher: jaeger
+
+# 数据库配置
+# 注意：生产环境应通过环境变量 DB_URL 注入，此处占位符仅用于本地开发映射
+Database:
+  DataSource: ${DB_URL}

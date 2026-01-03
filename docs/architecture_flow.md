@@ -54,13 +54,13 @@ graph TD
 
     %% 路径 B: 智能理解路径 (大脑)
     subgraph "Python AI Logic"
-        AI_Agent["AI Agent (Python/LangGraph)"]
+        AI_Agent["Multi-Agent Crew (Python/CrewAI)"]
         LLM[("Gemini 3 (LLM)")]
     end
 
     %% AI 驱动流
     MQ -->|6. 订阅分析请求| AI_Agent
-    AI_Agent <-->|"7. 语义推演 & 情感建模"| LLM
+    AI_Agent <-->|"7. 多角色协作推理"| LLM
     AI_Agent -->|"8. 发送 AI 偏见指令 (Bias/Halt)"| MQ
 
     %% 行情驱动流

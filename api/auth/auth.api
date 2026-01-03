@@ -1,0 +1,74 @@
+syntax = "v1"
+
+info (
+	title:   "Authentication API"
+	desc:    "统一身份认证入口：支持登录、注销、令牌管理"
+	version: "v1"
+)
+
+import "passkey.api"
+
+type (
+	// ... 现有 Login 类型保持不变 ...
+	LoginRequest {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	// OAuth2Request 发起 OAuth 流程
+	OAuth2Request {
+		Provider string `json:"provider"` // "google", "github"
+	}
+	// OAuth2CallbackResponse OAuth 回调结果
+	OAuth2CallbackResponse {
+		Code  string `json:"code"`
+		State string `json:"state"`
+	}
+	LoginResponse {
+		Status       string   `json:"status"`                 // "success", "require_mfa"
+		PendingToken string   `json:"pendingToken,optional"`  // [短效 5min] 用于 MFA 挑战的临时凭证
+		MfaType      string   `json:"mfaType,optional"`       // "passkey", "totp"
+		Token        string   `json:"token,optional"`         // [常规 24h] 全权限 JWT
+		User         UserInfo `json:"user,optional"`          // 用户基础信息
+	}
+	UserInfo {
+		Id          int64  `json:"id"`
+		Username    string `json:"username"`
+		DisplayName string `json:"displayName"`
+		Avatar      string `json:"avatar"`
+	}
+	LogoutResponse {
+		Success bool `json:"success"`
+	}
+)
+
+@server (
+	prefix: /api/v1/auth
+	group:  auth
+	tags:   "身份认证"
+)
+service alpha_trade {
+	@doc (
+		summary: "基础登录 (密码)"
+	)
+	@handler AuthLogin
+	post /login (LoginRequest) returns (LoginResponse)
+
+	@doc (
+		summary: "发起 OAuth2 登录 (重定向到 Google/GitHub)"
+	)
+	@handler AuthOAuth2Init
+	get /oauth2/init (OAuth2Request)
+
+	@doc (
+		summary: "OAuth2 回调 (由第三方平台跳回)"
+	)
+	@handler AuthOAuth2Callback
+	get /oauth2/callback (OAuth2CallbackResponse) returns (LoginResponse)
+
+	@doc (
+		summary: "退出登录"
+	)
+	@handler AuthLogout
+	post /logout returns (LogoutResponse)
+}
+
