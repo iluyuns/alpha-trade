@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/iluyuns/alpha-trade/internal/model"
 	"github.com/iluyuns/alpha-trade/internal/pkg/ctxval"
+	"github.com/iluyuns/alpha-trade/internal/query"
 	"github.com/iluyuns/alpha-trade/internal/svc"
 	"github.com/iluyuns/alpha-trade/internal/types"
 
@@ -34,8 +34,8 @@ func (l *AuthLogoutLogic) AuthLogout() (resp *types.LogoutResponse, err error) {
 	l.svcCtx.RevocationManager.Revoke(l.ctx, uid, now)
 
 	// 记录审计日志
-	_, _ = l.svcCtx.UserAccessLogsModel.Insert(l.ctx, &model.UserAccessLogs{
-		UserId:    uid,
+	_, _ = l.svcCtx.UserAccessLogs.Insert(l.ctx, &query.UserAccessLogs{
+		UserID:    uid,
 		IpAddress: ctxval.GetIP(l.ctx),
 		UserAgent: ctxval.GetUA(l.ctx),
 		Action:    "LOGOUT",

@@ -5,7 +5,7 @@ DB_URL = postgres://alpha:alpha_pwd@localhost:5432/alpha_trade?sslmode=disable
 comma := ,
 empty :=
 space := $(empty) $(empty)
-TABLES = users,webauthn_credentials,exchange_accounts,audit_logs,orders,executions,risk_records,asset_snapshots,strategy_configs,settlements
+TABLES = users,webauthn_credentials,exchange_accounts,audit_logs,orders,executions,risk_records,asset_snapshots,strategy_configs,settlements,user_access_logs
 
 API_FILE = api/_.api
 API_DIR = ./
@@ -35,8 +35,6 @@ migrate:
 # 生成数据库实体和部分方法
 .PHONY: model
 model:
-	@echo ">>> generate all models using internal pgmodelgen..."
-	@for table in $(subst $(comma),$(space),$(TABLES)); do \
-		go run ./cmd/pgmodelgen --url $(DB_URL) --schema public --table $$table --dir ./internal/model; \
-	done
+	@echo ">>> generate all models using gpmg..."
+	../gpmg/gpmg --url $(DB_URL) --schema public --table $(TABLES) --dir ./internal/query --package query
 	@echo ">>> generate model file success"

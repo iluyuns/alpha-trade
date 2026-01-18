@@ -11,12 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/iluyuns/alpha-trade/internal/model"
 	"github.com/iluyuns/alpha-trade/internal/pkg/ctxval"
 	"github.com/iluyuns/alpha-trade/internal/pkg/jwt"
+	"github.com/iluyuns/alpha-trade/internal/query"
 	"github.com/iluyuns/alpha-trade/internal/svc"
 	"github.com/iluyuns/alpha-trade/internal/types"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
@@ -78,10 +77,10 @@ func (l *AuthOAuth2CallbackLogic) AuthOAuth2Callback(req *types.OAuth2CallbackRe
 	}
 
 	// 4. 账户关联逻辑
-	var user *model.Users
+	var user *query.Users
 	if uid > 0 {
 		// 情况 A: 绑定流程 (已登录用户关联第三方账号)
-		user, err = l.svcCtx.UsersModel.FindOne(l.ctx, uid)
+		user, err = l.svcCtx.Users.FindByPK(l.ctx, uid)
 		if err != nil {
 			return nil, fmt.Errorf("user not found for binding: %w", err)
 		}
@@ -89,20 +88,18 @@ func (l *AuthOAuth2CallbackLogic) AuthOAuth2Callback(req *types.OAuth2CallbackRe
 		// 执行绑定逻辑: 将第三方 ID 存入用户表
 		switch provider {
 		case "github":
-			user.GithubId.String = userInfo.ID
-			user.GithubId.Valid = true
+			user.GithubID = userInfo.ID
 		case "google":
-			user.GoogleId.String = userInfo.ID
-			user.GoogleId.Valid = true
+			user.GoogleID = userInfo.ID
 		}
-		if err := l.svcCtx.UsersModel.Update(l.ctx, user); err != nil {
+		if err := l.svcCtx.Users.UpdateByPK(l.ctx, user); err != nil {
 			return nil, fmt.Errorf("failed to bind oauth account: %w", err)
 		}
 	} else {
 		// 情况 B: 登录流程 (未登录用户通过已关联的第三方账号登录)
-		user, err = l.svcCtx.UsersModel.FindOneByOAuth(l.ctx, provider, userInfo.ID)
+		user, err = l.svcCtx.Users.FindByOAuth(l.ctx, provider, userInfo.ID)
 		if err != nil {
-			if err == sqlx.ErrNotFound {
+			if err == query.ErrRecordNotFound {
 				l.recordAccessLog(0, "OAUTH_LOGIN", "FAIL", "USER_NOT_FOUND")
 				return nil, fmt.Errorf("account not found: %s account is not linked to any user", provider)
 			}
@@ -113,7 +110,7 @@ func (l *AuthOAuth2CallbackLogic) AuthOAuth2Callback(req *types.OAuth2CallbackRe
 	// 5. 签发系统令牌 (ScopeBaseAuth)
 	jwtToken, err := jwt.GenerateTokenWithIp(
 		l.svcCtx.Config.Auth.AuthSecret,
-		user.Id,
+		user.ID,
 		jwt.ScopeBaseAuth,
 		l.svcCtx.Config.Auth.BaseExpire,
 		ctxval.GetIP(l.ctx),
@@ -122,13 +119,13 @@ func (l *AuthOAuth2CallbackLogic) AuthOAuth2Callback(req *types.OAuth2CallbackRe
 		return nil, err
 	}
 
-	l.recordAccessLog(user.Id, "OAUTH_LOGIN", "SUCCESS", provider)
+	l.recordAccessLog(user.ID, "OAUTH_LOGIN", "SUCCESS", provider)
 
 	return &types.LoginResponse{
 		Status: "success",
 		Token:  jwtToken,
 		User: types.UserInfo{
-			Id:          user.Id,
+			Id:          user.ID,
 			Username:    user.Username,
 			DisplayName: user.DisplayName,
 			Avatar:      user.Avatar,
@@ -221,8 +218,8 @@ func (l *AuthOAuth2CallbackLogic) fetchUserInfo(provider string, token *oauth2.T
 }
 
 func (l *AuthOAuth2CallbackLogic) recordAccessLog(uid int64, action, status, reason string) {
-	_, _ = l.svcCtx.UserAccessLogsModel.Insert(l.ctx, &model.UserAccessLogs{
-		UserId:    uid,
+	_, _ = l.svcCtx.UserAccessLogs.Insert(l.ctx, &query.UserAccessLogs{
+		UserID:    uid,
 		IpAddress: ctxval.GetIP(l.ctx),
 		UserAgent: ctxval.GetUA(l.ctx),
 		Action:    action,

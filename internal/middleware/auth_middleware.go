@@ -6,19 +6,19 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/iluyuns/alpha-trade/internal/model"
 	"github.com/iluyuns/alpha-trade/internal/pkg/jwt"
 	"github.com/iluyuns/alpha-trade/internal/pkg/revocation"
+	"github.com/iluyuns/alpha-trade/internal/query"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
 type AuthMiddleware struct {
 	secret     string
-	model      model.UserAccessLogsModel
+	model      *query.UserAccessLogsCustom
 	revocation revocation.RevocationManager
 }
 
-func NewAuthMiddleware(secret string, model model.UserAccessLogsModel, revocation revocation.RevocationManager) *AuthMiddleware {
+func NewAuthMiddleware(secret string, model *query.UserAccessLogsCustom, revocation revocation.RevocationManager) *AuthMiddleware {
 	return &AuthMiddleware{
 		secret:     secret,
 		model:      model,
@@ -51,8 +51,8 @@ func (m *AuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 		currentIp := httpx.GetRemoteAddr(r)
 		if claims.IssuedIp != "" && claims.IssuedIp != currentIp {
 			// 记录会话被撤销的审计日志
-			_, _ = m.model.Insert(r.Context(), &model.UserAccessLogs{
-				UserId:    claims.UserId,
+			_, _ = m.model.Insert(r.Context(), &query.UserAccessLogs{
+				UserID:    claims.UserId,
 				IpAddress: currentIp,
 				UserAgent: r.Header.Get("User-Agent"),
 				Action:    "SESSION_REVOKED",

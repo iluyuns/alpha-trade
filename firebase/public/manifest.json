@@ -1,0 +1,20 @@
+{
+  "name": "AlphaTrade",
+  "short_name": "AlphaTrade",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#039be5",
+  "icons": [
+    {
+      "src": "https://firebase.google.com/downloads/brand-guidelines/PNG/logo-logomark.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://firebase.google.com/downloads/brand-guidelines/PNG/logo-logomark.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/iluyuns/alpha-trade/internal/config"
-	"github.com/iluyuns/alpha-trade/internal/model"
 	"github.com/iluyuns/alpha-trade/internal/pkg/crypto"
+	"github.com/iluyuns/alpha-trade/internal/query"
+	_ "github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/conf"
-	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 var (
@@ -37,9 +38,15 @@ func main() {
 	// 2. 加载配置与初始化模型
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
-	conn := sqlx.NewSqlConn("postgres", c.Database.DataSource)
-	usersModel := model.NewUsersModel(conn)
-	webauthnModel := model.NewWebauthnCredentialsModel(conn)
+	db, err := sql.Open("postgres", c.Database.DataSource)
+	if err != nil {
+		fmt.Printf("Error connecting to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	usersQuery := query.NewUsers(db)
+	webauthnQuery := query.NewWebauthnCredentials(db)
 
 	// 3. 处理子命令
 	if flag.NArg() < 1 {
@@ -50,9 +57,9 @@ func main() {
 	cmd := flag.Arg(0)
 	switch cmd {
 	case "reset-passkey":
-		handleResetPasskey(usersModel, webauthnModel, flag.Args()[1:])
+		handleResetPasskey(usersQuery, webauthnQuery, flag.Args()[1:])
 	case "set-password":
-		handleSetPassword(usersModel, flag.Args()[1:])
+		handleSetPassword(usersQuery, flag.Args()[1:])
 	default:
 		printUsage()
 		os.Exit(1)
@@ -66,7 +73,7 @@ func printUsage() {
 	fmt.Println("  admin-cli -f <config> -p <pass> set-password --user <username> --pass <new_password>")
 }
 
-func handleResetPasskey(u model.UsersModel, w model.WebauthnCredentialsModel, args []string) {
+func handleResetPasskey(u *query.UsersCustom, w *query.WebauthnCredentialsCustom, args []string) {
 	fs := flag.NewFlagSet("reset-passkey", flag.ExitOnError)
 	username := fs.String("user", "", "target username")
 	fs.Parse(args)
@@ -77,7 +84,7 @@ func handleResetPasskey(u model.UsersModel, w model.WebauthnCredentialsModel, ar
 	}
 
 	// 查找用户
-	user, err := u.FindOneByUsername(context.Background(), *username)
+	user, err := u.FindByUsername(context.Background(), *username)
 	if err != nil {
 		fmt.Printf("Error: User %s not found: %v\n", *username, err)
 		return
@@ -100,7 +107,7 @@ func handleResetPasskey(u model.UsersModel, w model.WebauthnCredentialsModel, ar
 		return
 	}
 	user.PasswordHash = hashedPass
-	err = u.Update(context.Background(), user)
+	err = u.UpdateByPK(context.Background(), user)
 	if err != nil {
 		fmt.Printf("Error updating password: %v\n", err)
 		return
@@ -112,7 +119,7 @@ func handleResetPasskey(u model.UsersModel, w model.WebauthnCredentialsModel, ar
 	fmt.Println("Please login via web and register a NEW Passkey immediately.")
 }
 
-func handleSetPassword(u model.UsersModel, args []string) {
+func handleSetPassword(u *query.UsersCustom, args []string) {
 	fs := flag.NewFlagSet("set-password", flag.ExitOnError)
 	username := fs.String("user", "", "target username")
 	newPass := fs.String("pass", "", "new password")
@@ -123,7 +130,7 @@ func handleSetPassword(u model.UsersModel, args []string) {
 		return
 	}
 
-	user, err := u.FindOneByUsername(context.Background(), *username)
+	user, err := u.FindByUsername(context.Background(), *username)
 	if err != nil {
 		fmt.Printf("Error: User %s not found: %v\n", *username, err)
 		return
@@ -135,7 +142,7 @@ func handleSetPassword(u model.UsersModel, args []string) {
 		return
 	}
 	user.PasswordHash = hashedPass
-	err = u.Update(context.Background(), user)
+	err = u.UpdateByPK(context.Background(), user)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
