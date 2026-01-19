@@ -14,6 +14,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/query"
 	_ "github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 var (
@@ -45,8 +46,11 @@ func main() {
 	}
 	defer db.Close()
 
-	usersQuery := query.NewUsers(db)
-	webauthnQuery := query.NewWebauthnCredentials(db)
+	// 创建 sqlx 连接
+	sqlConn := sqlx.NewSqlConnFromDB(db)
+
+	usersQuery := query.NewUsers(sqlConn)
+	webauthnQuery := query.NewWebauthnCredentials(sqlConn)
 
 	// 3. 处理子命令
 	if flag.NArg() < 1 {

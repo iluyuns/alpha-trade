@@ -16,5 +16,5 @@ func NewSettlements(db Executor) *SettlementsCustom {
 
 // Example custom method (you can remove or modify this):
 // func (c *SettlementsCustom) FindByCustomCondition(ctx context.Context, condition string) ([]*Settlements, error) {
-// 	return c.Where(...).Find(ctx)
+// 	return c.Where(c.Field.ID.Gt(0)).Find(ctx)
 // }

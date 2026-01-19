@@ -16,5 +16,5 @@ func NewExchangeAccounts(db Executor) *ExchangeAccountsCustom {
 
 // Example custom method (you can remove or modify this):
 // func (c *ExchangeAccountsCustom) FindByCustomCondition(ctx context.Context, condition string) ([]*ExchangeAccounts, error) {
-// 	return c.Where(...).Find(ctx)
+// 	return c.Where(c.Field.ID.Gt(0)).Find(ctx)
 // }

@@ -16,7 +16,7 @@ func NewUserAccessLogs(db Executor) *UserAccessLogsCustom {
 	}
 }
 
-// Insert creates a new user access log record (compatibility method)
-func (c *UserAccessLogsCustom) Insert(ctx context.Context, log *UserAccessLogs) (*UserAccessLogs, error) {
-	return c.Create(ctx, log)
+// Insert is an alias for Create to maintain backward compatibility
+func (c *UserAccessLogsCustom) Insert(ctx context.Context, model *UserAccessLogs) (*UserAccessLogs, error) {
+	return c.Create(ctx, model)
 }

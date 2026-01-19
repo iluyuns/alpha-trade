@@ -16,5 +16,5 @@ func NewStrategyConfigs(db Executor) *StrategyConfigsCustom {
 
 // Example custom method (you can remove or modify this):
 // func (c *StrategyConfigsCustom) FindByCustomCondition(ctx context.Context, condition string) ([]*StrategyConfigs, error) {
-// 	return c.Where(...).Find(ctx)
+// 	return c.Where(c.Field.ID.Gt(0)).Find(ctx)
 // }

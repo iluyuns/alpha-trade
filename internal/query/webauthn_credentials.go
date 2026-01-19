@@ -13,3 +13,8 @@ func NewWebauthnCredentials(db Executor) *WebauthnCredentialsCustom {
 		webauthnCredentialsDo: webauthnCredentials.WithDB(db).(*webauthnCredentialsDo),
 	}
 }
+
+// Example custom method (you can remove or modify this):
+// func (c *WebauthnCredentialsCustom) FindByCustomCondition(ctx context.Context, condition string) ([]*WebauthnCredentials, error) {
+// 	return c.Where(c.Field.ID.Gt(0)).Find(ctx)
+// }

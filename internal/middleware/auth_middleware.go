@@ -51,7 +51,7 @@ func (m *AuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 		currentIp := httpx.GetRemoteAddr(r)
 		if claims.IssuedIp != "" && claims.IssuedIp != currentIp {
 			// 记录会话被撤销的审计日志
-			_, _ = m.model.Insert(r.Context(), &query.UserAccessLogs{
+			_, _ = m.model.Create(r.Context(), &query.UserAccessLogs{
 				UserID:    claims.UserId,
 				IpAddress: currentIp,
 				UserAgent: r.Header.Get("User-Agent"),

@@ -8,6 +8,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/pkg/email"
 	"github.com/iluyuns/alpha-trade/internal/pkg/revocation"
 	"github.com/iluyuns/alpha-trade/internal/query"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"github.com/zeromicro/go-zero/rest"
 )
 
@@ -42,11 +43,14 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 		return nil, err
 	}
 
+	// 创建 sqlx 连接
+	sqlConn := sqlx.NewSqlConnFromDB(db)
+
 	// 初始化 Query 访问器
-	usersQuery := query.NewUsers(db)
-	auditLogsQuery := query.NewAuditLogs(db)
-	webauthnQuery := query.NewWebauthnCredentials(db)
-	userAccessLogsQuery := query.NewUserAccessLogs(db)
+	usersQuery := query.NewUsers(sqlConn)
+	auditLogsQuery := query.NewAuditLogs(sqlConn)
+	webauthnQuery := query.NewWebauthnCredentials(sqlConn)
+	userAccessLogsQuery := query.NewUserAccessLogs(sqlConn)
 
 	// 初始化撤销管理器
 	revocationManager, err := revocation.NewCachedRevocationManager(usersQuery)

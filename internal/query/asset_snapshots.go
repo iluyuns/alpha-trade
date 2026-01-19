@@ -16,5 +16,5 @@ func NewAssetSnapshots(db Executor) *AssetSnapshotsCustom {
 
 // Example custom method (you can remove or modify this):
 // func (c *AssetSnapshotsCustom) FindByCustomCondition(ctx context.Context, condition string) ([]*AssetSnapshots, error) {
-// 	return c.Where(...).Find(ctx)
+// 	return c.Where(c.Field.ID.Gt(0)).Find(ctx)
 // }

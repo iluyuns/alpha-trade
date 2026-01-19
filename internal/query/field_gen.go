@@ -3,6 +3,7 @@
 package query
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -25,6 +26,47 @@ type orderBy string
 
 func (o orderBy) ToSQL() string {
 	return string(o)
+}
+
+// GroupByClause represents a GROUP BY clause
+type GroupByClause interface {
+	ColumnName() string
+}
+
+// AggregateFunc represents an aggregate function (SUM, AVG, etc.)
+type AggregateFunc struct {
+	funcName string
+	field    Field
+	alias    string
+}
+
+func (a AggregateFunc) ColumnName() string {
+	if a.alias != "" {
+		return a.alias
+	}
+	return fmt.Sprintf("%s(%s)", a.funcName, a.field.ColumnName())
+}
+
+func (a AggregateFunc) As(alias string) AggregateFunc {
+	a.alias = alias
+	return a
+}
+
+func (a AggregateFunc) ToSQL() string {
+	sql := fmt.Sprintf("%s(%s)", a.funcName, a.field.ColumnName())
+	if a.alias != "" {
+		sql += " AS " + a.alias
+	}
+	return sql
+}
+
+// HavingCondition represents a HAVING condition
+type HavingCondition struct {
+	sqlizer squirrel.Sqlizer
+}
+
+func (h HavingCondition) ToSqlizer() squirrel.Sqlizer {
+	return h.sqlizer
 }
 
 // WhereCondition represents a type-safe WHERE condition
@@ -103,6 +145,27 @@ func (f Int64Field) Between(min, max int64) WhereCondition {
 	}}
 }
 
+// Aggregate functions for Int64Field
+func (f Int64Field) Sum() AggregateFunc {
+	return AggregateFunc{funcName: "SUM", field: f}
+}
+
+func (f Int64Field) Avg() AggregateFunc {
+	return AggregateFunc{funcName: "AVG", field: f}
+}
+
+func (f Int64Field) Max() AggregateFunc {
+	return AggregateFunc{funcName: "MAX", field: f}
+}
+
+func (f Int64Field) Min() AggregateFunc {
+	return AggregateFunc{funcName: "MIN", field: f}
+}
+
+func (f Int64Field) Count() AggregateFunc {
+	return AggregateFunc{funcName: "COUNT", field: f}
+}
+
 // ===============================================
 // Float64 Field
 // ===============================================
@@ -156,6 +219,27 @@ func (f Float64Field) Between(min, max float64) WhereCondition {
 	}}
 }
 
+// Aggregate functions for Float64Field
+func (f Float64Field) Sum() AggregateFunc {
+	return AggregateFunc{funcName: "SUM", field: f}
+}
+
+func (f Float64Field) Avg() AggregateFunc {
+	return AggregateFunc{funcName: "AVG", field: f}
+}
+
+func (f Float64Field) Max() AggregateFunc {
+	return AggregateFunc{funcName: "MAX", field: f}
+}
+
+func (f Float64Field) Min() AggregateFunc {
+	return AggregateFunc{funcName: "MIN", field: f}
+}
+
+func (f Float64Field) Count() AggregateFunc {
+	return AggregateFunc{funcName: "COUNT", field: f}
+}
+
 // ===============================================
 // String Field
 // ===============================================
@@ -199,6 +283,19 @@ func (f StringField) NotLike(pattern string) WhereCondition {
 // ILike generates field ILIKE pattern condition (case-insensitive)
 func (f StringField) ILike(pattern string) WhereCondition {
 	return whereCondition{squirrel.ILike{string(f): pattern}}
+}
+
+// Aggregate functions for StringField
+func (f StringField) Count() AggregateFunc {
+	return AggregateFunc{funcName: "COUNT", field: f}
+}
+
+func (f StringField) Max() AggregateFunc {
+	return AggregateFunc{funcName: "MAX", field: f}
+}
+
+func (f StringField) Min() AggregateFunc {
+	return AggregateFunc{funcName: "MIN", field: f}
 }
 
 // ===============================================
@@ -298,6 +395,27 @@ func (f DecimalField) Between(min, max decimal.Decimal) WhereCondition {
 	}}
 }
 
+// Aggregate functions for DecimalField
+func (f DecimalField) Sum() AggregateFunc {
+	return AggregateFunc{funcName: "SUM", field: f}
+}
+
+func (f DecimalField) Avg() AggregateFunc {
+	return AggregateFunc{funcName: "AVG", field: f}
+}
+
+func (f DecimalField) Max() AggregateFunc {
+	return AggregateFunc{funcName: "MAX", field: f}
+}
+
+func (f DecimalField) Min() AggregateFunc {
+	return AggregateFunc{funcName: "MIN", field: f}
+}
+
+func (f DecimalField) Count() AggregateFunc {
+	return AggregateFunc{funcName: "COUNT", field: f}
+}
+
 // ===============================================
 // Time Field
 // ===============================================
@@ -349,6 +467,19 @@ func (f TimeField) Between(start, end time.Time) WhereCondition {
 		squirrel.GtOrEq{string(f): start},
 		squirrel.LtOrEq{string(f): end},
 	}}
+}
+
+// Aggregate functions for TimeField
+func (f TimeField) Max() AggregateFunc {
+	return AggregateFunc{funcName: "MAX", field: f}
+}
+
+func (f TimeField) Min() AggregateFunc {
+	return AggregateFunc{funcName: "MIN", field: f}
+}
+
+func (f TimeField) Count() AggregateFunc {
+	return AggregateFunc{funcName: "COUNT", field: f}
 }
 
 // ===============================================

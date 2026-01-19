@@ -1,7 +1,5 @@
 package query
 
-import "context"
-
 // AuditLogsCustom is the custom extension for AuditLogs.
 // Add your custom methods here. This file will NOT be overwritten on regeneration.
 type AuditLogsCustom struct {
@@ -16,16 +14,7 @@ func NewAuditLogs(db Executor) *AuditLogsCustom {
 	}
 }
 
-// RecordAction 记录审计日志
-func (c *AuditLogsCustom) RecordAction(ctx context.Context, userID int64, ip, action, targetType, targetID, changes string, isVerified bool) error {
-	_, err := c.Create(ctx, &AuditLogs{
-		UserID:     userID,
-		IpAddress:  ip,
-		Action:     action,
-		TargetType: targetType,
-		TargetID:   targetID,
-		Changes:    changes,
-		IsVerified: isVerified,
-	})
-	return err
-}
+// Example custom method (you can remove or modify this):
+// func (c *AuditLogsCustom) FindByCustomCondition(ctx context.Context, condition string) ([]*AuditLogs, error) {
+// 	return c.Where(c.Field.ID.Gt(0)).Find(ctx)
+// }

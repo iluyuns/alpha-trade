@@ -19,57 +19,35 @@ func NewUsers(db Executor) *UsersCustom {
 	}
 }
 
-// FindByUsername 根据用户名查询用户
 func (c *UsersCustom) FindByUsername(ctx context.Context, username string) (*Users, error) {
-	users, err := c.Where(usersField.Username.Eq(username)).Find(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(users) == 0 {
-		return nil, ErrRecordNotFound
-	}
-	return users[0], nil
+	return c.Where(c.Field.Username.Eq(username)).First(ctx)
 }
 
-// FindByOAuth 根据第三方账号查询用户
-func (c *UsersCustom) FindByOAuth(ctx context.Context, provider string, oauthID string) (*Users, error) {
-	var cond WhereCondition
+// FindByOAuth finds a user by OAuth provider and provider ID
+func (c *UsersCustom) FindByOAuth(ctx context.Context, provider, providerID string) (*Users, error) {
 	switch provider {
 	case "github":
-		cond = usersField.GithubID.Eq(oauthID)
+		return c.Where(c.Field.GithubID.Eq(providerID)).First(ctx)
 	case "google":
-		cond = usersField.GoogleID.Eq(oauthID)
+		return c.Where(c.Field.GoogleID.Eq(providerID)).First(ctx)
 	default:
 		return nil, ErrRecordNotFound
 	}
-
-	result, err := c.Where(cond).Find(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(result) == 0 {
-		return nil, ErrRecordNotFound
-	}
-	return result[0], nil
 }
 
-// GetRevokedAt 获取用户的撤销时间（用于 token 撤销检查）
-// 实现 RevocationStore 接口
-func (c *UsersCustom) GetRevokedAt(ctx context.Context, userID int64) (time.Time, error) {
-	user, err := c.FindByPK(ctx, userID)
+// UpdateRevokedAt updates the revoked_at timestamp for a user
+func (c *UsersCustom) UpdateRevokedAt(ctx context.Context, uid int64, revokedAt time.Time) error {
+	_, err := c.Where(c.Field.ID.Eq(uid)).Update(ctx, map[string]interface{}{
+		"revoked_at": revokedAt,
+	})
+	return err
+}
+
+// GetRevokedAt retrieves the revoked_at timestamp for a user
+func (c *UsersCustom) GetRevokedAt(ctx context.Context, uid int64) (time.Time, error) {
+	user, err := c.Where(c.Field.ID.Eq(uid)).Select(c.Field.RevokedAt).First(ctx)
 	if err != nil {
 		return time.Time{}, err
 	}
 	return user.RevokedAt, nil
-}
-
-// UpdateRevokedAt 更新用户的撤销时间
-// 实现 RevocationStore 接口
-func (c *UsersCustom) UpdateRevokedAt(ctx context.Context, userID int64, revokedAt time.Time) error {
-	user, err := c.FindByPK(ctx, userID)
-	if err != nil {
-		return err
-	}
-	user.RevokedAt = revokedAt
-	return c.UpdateByPK(ctx, user)
 }
