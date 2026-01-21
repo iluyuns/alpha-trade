@@ -2,6 +2,7 @@ package passkey
 
 import (
 	"context"
+	"errors"
 
 	"github.com/iluyuns/alpha-trade/internal/svc"
 	"github.com/iluyuns/alpha-trade/internal/types"
@@ -24,7 +25,6 @@ func NewPasskeyAddBeginLogic(ctx context.Context, svcCtx *svc.ServiceContext) Pa
 }
 
 func (l *PasskeyAddBeginLogic) PasskeyAddBegin(req *types.AddBeginRequest) (resp *types.AddBeginResponse, err error) {
-	// todo: add your logic here and delete this line
-
-	return
+	// Passkey 功能暂未实现 (Phase 4)
+	return nil, errors.New("passkey feature not implemented yet")
 }

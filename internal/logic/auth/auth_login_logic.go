@@ -7,7 +7,6 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/pkg/crypto"
 	"github.com/iluyuns/alpha-trade/internal/pkg/ctxval"
 	"github.com/iluyuns/alpha-trade/internal/pkg/jwt"
-	"github.com/iluyuns/alpha-trade/internal/query"
 	"github.com/iluyuns/alpha-trade/internal/svc"
 	"github.com/iluyuns/alpha-trade/internal/types"
 
@@ -69,12 +68,14 @@ func (l *AuthLoginLogic) AuthLogin(req *types.LoginRequest) (resp *types.LoginRe
 }
 
 func (l *AuthLoginLogic) recordAccessLog(uid int64, action, status, reason string) {
-	_, _ = l.svcCtx.UserAccessLogs.Insert(l.ctx, &query.UserAccessLogs{
-		UserID:    uid,
-		IpAddress: ctxval.GetIP(l.ctx),
-		UserAgent: ctxval.GetUA(l.ctx),
-		Action:    action,
-		Status:    status,
-		Reason:    reason,
-	})
+	_ = l.svcCtx.AuditLogs.RecordAction(
+		l.ctx,
+		uid,
+		ctxval.GetIP(l.ctx),
+		action,
+		status,
+		reason,
+		"",
+		false,
+	)
 }

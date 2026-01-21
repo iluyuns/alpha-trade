@@ -1,6 +1,7 @@
 # 全链路驱动架构图 (Full-Stack Data Flow)
 
-本文档通过 Mermaid 流程图展示了系统从行情采集、AI 决策到订单执行的完整链路。
+本文档通过 Mermaid 流程图展示系统从行情采集、AI 决策到订单执行的完整链路。
+Phase 3 仅走 Go 内部同步路径；NATS 与 AI 相关链路为 Phase 4+ 计划。
 
 ```mermaid
 graph TD
@@ -31,9 +32,9 @@ graph TD
     L2Depth -->|1.1 挂单墙/失衡数据| GW_Trade
 
     %% ==================================================
-    %% 消息中枢 (Message Bus)
+    %% 消息中枢 (Message Bus) - Phase 4+
     %% ==================================================
-    subgraph "NATS JetStream (Async Hub)"
+    subgraph "NATS JetStream (Async Hub - Phase 4+)"
         MQ{{"NATS 流转中心"}}
     end
 
@@ -64,14 +65,15 @@ graph TD
     AI_Agent -->|"8. 发送 AI 偏见指令 (Bias/Halt)"| MQ
 
     %% 行情驱动流
-    MQ -->|9. 触发策略计算| Strategy
-    MQ -->|10. 注入 AI 偏见参数| Strategy
+    MQ -->|9. 触发策略计算 (Phase 4+)| Strategy
+    MQ -->|10. 注入 AI 偏见参数 (Phase 4+)| Strategy
+    GW_Trade -->|9. 行情直驱 (Phase 3)| Strategy
     
     %% ==================================================
     %% 执行层 (Execution Layer)
     %% ==================================================
     Strategy -->|11. 产生交易信号| Risk
-    MQ -->|12. 广播紧急熔断信号| Risk
+    MQ -->|12. 广播紧急熔断信号 (Phase 4+)| Risk
     
     Risk -->|13. 风险合规审核| OMS
     OMS -->|14. 路由订单请求| GW_Trade

@@ -14,14 +14,14 @@ import (
 
 type AuthMiddleware struct {
 	secret     string
-	model      *query.UserAccessLogsCustom
+	auditLogs  *query.AuditLogsCustom
 	revocation revocation.RevocationManager
 }
 
-func NewAuthMiddleware(secret string, model *query.UserAccessLogsCustom, revocation revocation.RevocationManager) *AuthMiddleware {
+func NewAuthMiddleware(secret string, auditLogs *query.AuditLogsCustom, revocation revocation.RevocationManager) *AuthMiddleware {
 	return &AuthMiddleware{
 		secret:     secret,
-		model:      model,
+		auditLogs:  auditLogs,
 		revocation: revocation,
 	}
 }
@@ -51,15 +51,8 @@ func (m *AuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 		currentIp := httpx.GetRemoteAddr(r)
 		if claims.IssuedIp != "" && claims.IssuedIp != currentIp {
 			// 记录会话被撤销的审计日志
-			_, _ = m.model.Create(r.Context(), &query.UserAccessLogs{
-				UserID:    claims.UserId,
-				IpAddress: currentIp,
-				UserAgent: r.Header.Get("User-Agent"),
-				Action:    "SESSION_REVOKED",
-				Status:    "BLOCKED",
-				Reason:    "IP_CHANGED",
-				Details:   fmt.Sprintf("{\"old\":\"%s\", \"new\":\"%s\"}", claims.IssuedIp, currentIp),
-			})
+			_ = m.auditLogs.RecordAction(r.Context(), claims.UserId, currentIp, "SESSION_REVOKED",
+				"", "", fmt.Sprintf("{\"old\":\"%s\", \"new\":\"%s\"}", claims.IssuedIp, currentIp), false)
 			httpx.Error(w, jwt.ErrInvalidToken)
 			return
 		}

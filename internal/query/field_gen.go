@@ -83,6 +83,24 @@ func (w whereCondition) ToSqlizer() squirrel.Sqlizer {
 	return w.sqlizer
 }
 
+// Or combines multiple WHERE conditions with OR logic
+func Or(conds ...WhereCondition) WhereCondition {
+	sqlizers := make([]squirrel.Sqlizer, len(conds))
+	for i, c := range conds {
+		sqlizers[i] = c.ToSqlizer()
+	}
+	return whereCondition{squirrel.Or(sqlizers)}
+}
+
+// And combines multiple WHERE conditions with AND logic (explicit)
+func And(conds ...WhereCondition) WhereCondition {
+	sqlizers := make([]squirrel.Sqlizer, len(conds))
+	for i, c := range conds {
+		sqlizers[i] = c.ToSqlizer()
+	}
+	return whereCondition{squirrel.And(sqlizers)}
+}
+
 // ===============================================
 // Int64 Field
 // ===============================================
@@ -143,6 +161,21 @@ func (f Int64Field) Between(min, max int64) WhereCondition {
 		squirrel.GtOrEq{string(f): min},
 		squirrel.LtOrEq{string(f): max},
 	}}
+}
+
+// IsNull generates field IS NULL condition
+func (f Int64Field) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f Int64Field) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrZero generates (field IS NULL OR field = 0) condition
+func (f Int64Field) IsNullOrZero() WhereCondition {
+	return Or(f.IsNull(), f.Eq(0))
 }
 
 // Aggregate functions for Int64Field
@@ -219,6 +252,21 @@ func (f Float64Field) Between(min, max float64) WhereCondition {
 	}}
 }
 
+// IsNull generates field IS NULL condition
+func (f Float64Field) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f Float64Field) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrZero generates (field IS NULL OR field = 0) condition
+func (f Float64Field) IsNullOrZero() WhereCondition {
+	return Or(f.IsNull(), f.Eq(0.0))
+}
+
 // Aggregate functions for Float64Field
 func (f Float64Field) Sum() AggregateFunc {
 	return AggregateFunc{funcName: "SUM", field: f}
@@ -285,6 +333,21 @@ func (f StringField) ILike(pattern string) WhereCondition {
 	return whereCondition{squirrel.ILike{string(f): pattern}}
 }
 
+// IsNull generates field IS NULL condition
+func (f StringField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f StringField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrEmpty generates (field IS NULL OR field = ”) condition
+func (f StringField) IsNullOrEmpty() WhereCondition {
+	return Or(f.IsNull(), f.Eq(""))
+}
+
 // Aggregate functions for StringField
 func (f StringField) Count() AggregateFunc {
 	return AggregateFunc{funcName: "COUNT", field: f}
@@ -326,6 +389,16 @@ func (f BoolField) IsFalse() WhereCondition {
 	return whereCondition{squirrel.Eq{string(f): false}}
 }
 
+// IsNull generates field IS NULL condition
+func (f BoolField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f BoolField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
 // ===============================================
 // Bytes Field
 // ===============================================
@@ -340,6 +413,21 @@ func (f BytesField) Eq(v []byte) WhereCondition {
 
 func (f BytesField) Neq(v []byte) WhereCondition {
 	return whereCondition{squirrel.NotEq{string(f): v}}
+}
+
+// IsNull generates field IS NULL condition
+func (f BytesField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f BytesField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrEmpty generates (field IS NULL OR field = ”) condition
+func (f BytesField) IsNullOrEmpty() WhereCondition {
+	return Or(f.IsNull(), f.Eq([]byte{}))
 }
 
 // ===============================================
@@ -393,6 +481,21 @@ func (f DecimalField) Between(min, max decimal.Decimal) WhereCondition {
 		squirrel.GtOrEq{string(f): min},
 		squirrel.LtOrEq{string(f): max},
 	}}
+}
+
+// IsNull generates field IS NULL condition
+func (f DecimalField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f DecimalField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrZero generates (field IS NULL OR field = 0) condition
+func (f DecimalField) IsNullOrZero() WhereCondition {
+	return Or(f.IsNull(), f.Eq(decimal.Zero))
 }
 
 // Aggregate functions for DecimalField
@@ -469,6 +572,16 @@ func (f TimeField) Between(start, end time.Time) WhereCondition {
 	}}
 }
 
+// IsNull generates field IS NULL condition
+func (f TimeField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f TimeField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
 // Aggregate functions for TimeField
 func (f TimeField) Max() AggregateFunc {
 	return AggregateFunc{funcName: "MAX", field: f}
@@ -498,6 +611,66 @@ func (f Int64ArrayField) Neq(v pq.Int64Array) WhereCondition {
 	return whereCondition{squirrel.NotEq{string(f): v}}
 }
 
+// IsNull generates field IS NULL condition
+func (f Int64ArrayField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f Int64ArrayField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrEmpty generates (field IS NULL OR field = '{}') condition
+func (f Int64ArrayField) IsNullOrEmpty() WhereCondition {
+	return Or(f.IsNull(), f.Eq(pq.Int64Array{}))
+}
+
+// Contains generates field @> ARRAY[...] condition (array contains all elements)
+func (f Int64ArrayField) Contains(values ...int64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s @> ?", string(f)), pq.Int64Array(values))}
+}
+
+// ContainsAny generates field && ARRAY[...] condition (array has overlap with any element)
+func (f Int64ArrayField) ContainsAny(values ...int64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s && ?", string(f)), pq.Int64Array(values))}
+}
+
+// ContainedBy generates field <@ ARRAY[...] condition (array is contained by)
+func (f Int64ArrayField) ContainedBy(values ...int64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s <@ ?", string(f)), pq.Int64Array(values))}
+}
+
+// HasElement generates value = ANY(field) condition (array contains single element)
+func (f Int64ArrayField) HasElement(value int64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("? = ANY(%s)", string(f)), value)}
+}
+
+// LengthEq generates array_length(field, 1) = n condition
+func (f Int64ArrayField) LengthEq(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) = ?", string(f)), n)}
+}
+
+// LengthGt generates array_length(field, 1) > n condition
+func (f Int64ArrayField) LengthGt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) > ?", string(f)), n)}
+}
+
+// LengthGte generates array_length(field, 1) >= n condition
+func (f Int64ArrayField) LengthGte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) >= ?", string(f)), n)}
+}
+
+// LengthLt generates array_length(field, 1) < n condition
+func (f Int64ArrayField) LengthLt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) < ?", string(f)), n)}
+}
+
+// LengthLte generates array_length(field, 1) <= n condition
+func (f Int64ArrayField) LengthLte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) <= ?", string(f)), n)}
+}
+
 type StringArrayField string
 
 func (f StringArrayField) ColumnName() string { return string(f) }
@@ -508,6 +681,66 @@ func (f StringArrayField) Eq(v pq.StringArray) WhereCondition {
 
 func (f StringArrayField) Neq(v pq.StringArray) WhereCondition {
 	return whereCondition{squirrel.NotEq{string(f): v}}
+}
+
+// IsNull generates field IS NULL condition
+func (f StringArrayField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f StringArrayField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrEmpty generates (field IS NULL OR field = '{}') condition
+func (f StringArrayField) IsNullOrEmpty() WhereCondition {
+	return Or(f.IsNull(), f.Eq(pq.StringArray{}))
+}
+
+// Contains generates field @> ARRAY[...] condition (array contains all elements)
+func (f StringArrayField) Contains(values ...string) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s @> ?", string(f)), pq.StringArray(values))}
+}
+
+// ContainsAny generates field && ARRAY[...] condition (array has overlap with any element)
+func (f StringArrayField) ContainsAny(values ...string) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s && ?", string(f)), pq.StringArray(values))}
+}
+
+// ContainedBy generates field <@ ARRAY[...] condition (array is contained by)
+func (f StringArrayField) ContainedBy(values ...string) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s <@ ?", string(f)), pq.StringArray(values))}
+}
+
+// HasElement generates value = ANY(field) condition (array contains single element)
+func (f StringArrayField) HasElement(value string) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("? = ANY(%s)", string(f)), value)}
+}
+
+// LengthEq generates array_length(field, 1) = n condition
+func (f StringArrayField) LengthEq(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) = ?", string(f)), n)}
+}
+
+// LengthGt generates array_length(field, 1) > n condition
+func (f StringArrayField) LengthGt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) > ?", string(f)), n)}
+}
+
+// LengthGte generates array_length(field, 1) >= n condition
+func (f StringArrayField) LengthGte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) >= ?", string(f)), n)}
+}
+
+// LengthLt generates array_length(field, 1) < n condition
+func (f StringArrayField) LengthLt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) < ?", string(f)), n)}
+}
+
+// LengthLte generates array_length(field, 1) <= n condition
+func (f StringArrayField) LengthLte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) <= ?", string(f)), n)}
 }
 
 type Float64ArrayField string
@@ -522,6 +755,66 @@ func (f Float64ArrayField) Neq(v pq.Float64Array) WhereCondition {
 	return whereCondition{squirrel.NotEq{string(f): v}}
 }
 
+// IsNull generates field IS NULL condition
+func (f Float64ArrayField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f Float64ArrayField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrEmpty generates (field IS NULL OR field = '{}') condition
+func (f Float64ArrayField) IsNullOrEmpty() WhereCondition {
+	return Or(f.IsNull(), f.Eq(pq.Float64Array{}))
+}
+
+// Contains generates field @> ARRAY[...] condition (array contains all elements)
+func (f Float64ArrayField) Contains(values ...float64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s @> ?", string(f)), pq.Float64Array(values))}
+}
+
+// ContainsAny generates field && ARRAY[...] condition (array has overlap with any element)
+func (f Float64ArrayField) ContainsAny(values ...float64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s && ?", string(f)), pq.Float64Array(values))}
+}
+
+// ContainedBy generates field <@ ARRAY[...] condition (array is contained by)
+func (f Float64ArrayField) ContainedBy(values ...float64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s <@ ?", string(f)), pq.Float64Array(values))}
+}
+
+// HasElement generates value = ANY(field) condition (array contains single element)
+func (f Float64ArrayField) HasElement(value float64) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("? = ANY(%s)", string(f)), value)}
+}
+
+// LengthEq generates array_length(field, 1) = n condition
+func (f Float64ArrayField) LengthEq(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) = ?", string(f)), n)}
+}
+
+// LengthGt generates array_length(field, 1) > n condition
+func (f Float64ArrayField) LengthGt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) > ?", string(f)), n)}
+}
+
+// LengthGte generates array_length(field, 1) >= n condition
+func (f Float64ArrayField) LengthGte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) >= ?", string(f)), n)}
+}
+
+// LengthLt generates array_length(field, 1) < n condition
+func (f Float64ArrayField) LengthLt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) < ?", string(f)), n)}
+}
+
+// LengthLte generates array_length(field, 1) <= n condition
+func (f Float64ArrayField) LengthLte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) <= ?", string(f)), n)}
+}
+
 type BoolArrayField string
 
 func (f BoolArrayField) ColumnName() string { return string(f) }
@@ -532,6 +825,66 @@ func (f BoolArrayField) Eq(v pq.BoolArray) WhereCondition {
 
 func (f BoolArrayField) Neq(v pq.BoolArray) WhereCondition {
 	return whereCondition{squirrel.NotEq{string(f): v}}
+}
+
+// IsNull generates field IS NULL condition
+func (f BoolArrayField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f BoolArrayField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
+}
+
+// IsNullOrEmpty generates (field IS NULL OR field = '{}') condition
+func (f BoolArrayField) IsNullOrEmpty() WhereCondition {
+	return Or(f.IsNull(), f.Eq(pq.BoolArray{}))
+}
+
+// Contains generates field @> ARRAY[...] condition (array contains all elements)
+func (f BoolArrayField) Contains(values ...bool) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s @> ?", string(f)), pq.BoolArray(values))}
+}
+
+// ContainsAny generates field && ARRAY[...] condition (array has overlap with any element)
+func (f BoolArrayField) ContainsAny(values ...bool) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s && ?", string(f)), pq.BoolArray(values))}
+}
+
+// ContainedBy generates field <@ ARRAY[...] condition (array is contained by)
+func (f BoolArrayField) ContainedBy(values ...bool) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("%s <@ ?", string(f)), pq.BoolArray(values))}
+}
+
+// HasElement generates value = ANY(field) condition (array contains single element)
+func (f BoolArrayField) HasElement(value bool) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("? = ANY(%s)", string(f)), value)}
+}
+
+// LengthEq generates array_length(field, 1) = n condition
+func (f BoolArrayField) LengthEq(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) = ?", string(f)), n)}
+}
+
+// LengthGt generates array_length(field, 1) > n condition
+func (f BoolArrayField) LengthGt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) > ?", string(f)), n)}
+}
+
+// LengthGte generates array_length(field, 1) >= n condition
+func (f BoolArrayField) LengthGte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) >= ?", string(f)), n)}
+}
+
+// LengthLt generates array_length(field, 1) < n condition
+func (f BoolArrayField) LengthLt(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) < ?", string(f)), n)}
+}
+
+// LengthLte generates array_length(field, 1) <= n condition
+func (f BoolArrayField) LengthLte(n int) WhereCondition {
+	return whereCondition{squirrel.Expr(fmt.Sprintf("array_length(%s, 1) <= ?", string(f)), n)}
 }
 
 // ===============================================
@@ -558,4 +911,14 @@ func (f GenericField) In(values any) WhereCondition {
 
 func (f GenericField) NotIn(values any) WhereCondition {
 	return whereCondition{squirrel.NotEq{string(f): values}}
+}
+
+// IsNull generates field IS NULL condition
+func (f GenericField) IsNull() WhereCondition {
+	return whereCondition{squirrel.Eq{string(f): nil}}
+}
+
+// IsNotNull generates field IS NOT NULL condition
+func (f GenericField) IsNotNull() WhereCondition {
+	return whereCondition{squirrel.NotEq{string(f): nil}}
 }

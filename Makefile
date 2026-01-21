@@ -33,15 +33,15 @@ migrate:
 	@echo ">>> generator migrate file success"
 
 # 生成数据库实体和部分方法
-.PHONY: model
-model:
+.PHONY: modelDefault
+modelDefault:
 	@echo ">>> generate all models using gpmg..."
 	go run ../gpmg/main.go --url $(DB_URL) --schema public --table $(TABLES) --dir ./internal/query --package query
 	@echo ">>> generate model file success"
 
 # 生成 go-zero sqlx 风格的模型 (使用 sqlx 而不是 database/sql)
-.PHONY: model-gozero
-model-gozero:
+.PHONY: model
+model:
 	@echo ">>> generate all models using gpmg (gozero style)..."
 	go run ../gpmg/main.go --url $(DB_URL) --schema public --table $(TABLES) --dir ./internal/query --package query --style gozero
 	@echo ">>> generate model file success"

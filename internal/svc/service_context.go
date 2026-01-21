@@ -60,9 +60,9 @@ func NewServiceContext(c config.Config) (*ServiceContext, error) {
 
 	return &ServiceContext{
 		Config:            c,
-		Auth:              middleware.NewAuthMiddleware(c.Auth.AuthSecret, userAccessLogsQuery, revocationManager).Handle, // 基础/MFA 认证密钥
-		MFA:               middleware.NewMFAMiddleware().Handle,                                                           // MFA 状态校验
-		MFAStepUp:         middleware.NewMFAStepUpMiddleware(c.Auth.SudoSecret).Handle,                                    // 提级认证校验
+		Auth:              middleware.NewAuthMiddleware(c.Auth.AuthSecret, auditLogsQuery, revocationManager).Handle, // 基础/MFA 认证密钥
+		MFA:               middleware.NewMFAMiddleware().Handle,                                                      // MFA 状态校验
+		MFAStepUp:         middleware.NewMFAStepUpMiddleware(c.Auth.SudoSecret).Handle,                               // 提级认证校验
 		Email:             email.NewAWSSES(&c.AWS),
 		DB:                db,
 		RevocationManager: revocationManager,

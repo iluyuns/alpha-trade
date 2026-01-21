@@ -8,7 +8,7 @@
 
 ## 1. 架构设计 (System Architecture)
 
-系统采用 **模块化单体 (Modular Monolith)** 架构，并结合 **AI 决策侧边服务**。
+系统采用 **模块化单体 (Modular Monolith)** 架构，并结合 **AI 决策侧边服务**（⚪ Phase 4+ 计划中）。
 
 ### 1.1 设计哲学：从《繁花》看量化系统 (Philosophy & Cultural DNA)
 
@@ -30,21 +30,23 @@
 ### 1.2 核心分层与数据流
 
 > 💡 **详细全链路驱动图已移至独立文件**: [docs/architecture_flow.md](./architecture_flow.md)
+>  
+> **Phase 3 约束**：当前核心链路为 Go 内部同步调用；NATS 与 AI 侧边服务为 Phase 4+ 计划，未进入执行路径。
 
 ```mermaid
 graph TD
     %% 此处保留高层级概览，详细链路参考上述 .mmd 文件
     Exchange["交易所"] <--> GW["网关层"]
-    GW --> MQ["NATS 消息中心"]
-    MQ <--> AI["AI 决策层 (Python)"]
-    MQ --> Logic["Go 交易核心"]
+    GW --> Logic["Go 交易核心"]
+    GW -.-> MQ["NATS 消息中心 (Phase 4+)"]
+    MQ <--> AI["AI 决策层 (Python) - Phase 4+"]
     Logic --> GW
 ```
 
 ### 1.2 目录结构 (Monorepo)
 
 *   `/internal`: Go 核心代码（交易、风控、OMS）。
-*   `/ai-agent`: Python AI 服务（基于 CrewAI 和 Gemini 3）。
+*   `/ai-agent`: Python AI 服务（基于 CrewAI 和 Gemini 3）⚪ **Phase 4+ 计划**（详见 `ai-agent/PAUSED.md`）。
 *   `/docs`: 全局文档与协议。
 *   `/pkg`: 公共工具库。
 
@@ -112,13 +114,132 @@ graph TD
 | **SPOT (现货)** | **LONG Only** | 仅支持 买入(Open) -> 卖出(Close)。 |
 | **FUTURE (合约)** | **LONG & SHORT** | 支持做多与做空。 |
 
+### 1.5.1 退出策略设计 (Exit Strategy Design)
+
+系统采用**多层次退出机制**，区分止损、止盈和信号反转三种场景，确保超短线交易中能够快速响应市场异动。
+
+#### 1.5.1.1 退出信号分类 (Exit Signal Types)
+
+| 类型 | 触发场景 | 执行优先级 | 执行方式 |
+| :--- | :--- | :--- | :--- |
+| **Stop Loss** | 价格向不利方向快速移动 + 放量 | **Emergency** (最高) | 立即市价平仓 (IOC + 保护价) |
+| **Take Profit** | 到达目标利润 + 出现反转信号 | **High** | 分批平仓 (50% 市价 + 50% 挂单) |
+| **Reversal** | 极速下跌/上涨 + 方向一致 + 成交放量 | **Medium** | 根据置信度决定平仓比例 |
+
+#### 1.5.1.2 极速反转检测器 (Fast Reversal Detector)
+
+针对 **1s K线** 的超短线场景，系统实现专用的反转信号检测器，用于捕捉"极速下跌 + 方向明朗 + 成交放量"的平仓时机。
+
+**核心检测逻辑**：
+1. **方向一致性检测 (Direction Consistency)**
+   - **窗口**: 最近 30 根 1s K线
+   - **阈值**: 至少 **70% 方向一致** (21/30 根)
+   - **目的**: 过滤震荡市，确保是单边快速移动
+
+2. **幅度确认 (Magnitude Confirmation)**
+   - **单根K线跌幅**: > 0.15% (根据标的波动率动态调整)
+   - **动态阈值表**:
+
+| 标的类型 | 跌幅阈值 | 成交量倍数 | 方向一致率 |
+| :--- | :--- | :--- | :--- |
+| **BTC/ETH** | 0.12% - 0.15% | 1.8x - 2.0x | 65% - 70% |
+| **主流币** | 0.15% - 0.20% | 2.0x - 2.2x | 70% - 75% |
+| **山寨币** | 0.25% - 0.35% | 2.5x - 3.0x | 75% - 80% |
+
+3. **成交量放大验证 (Volume Surge)**
+   - **计算**: 当前 Volume > 最近 30s 均量的 **2 倍**
+   - **目的**: 确认是真实突破而非假信号
+
+4. **震荡过滤器 (Consolidation Filter)**
+   - **ATR 检测**: `ATR(30s) > 前 5 分钟 ATR 均值`
+   - **目的**: 避免横盘震荡中的频繁误触发
+
+#### 1.5.1.3 噪音过滤机制 (Noise Filtering)
+
+1s K线的噪音极大，必须实施多层过滤：
+
+**过滤层级**：
+1. **L1 - 幅度阈值**: 过滤正常波动 (<0.15%)
+2. **L2 - 方向一致性**: 过滤随机游走 (<70%)
+3. **L3 - 成交量确认**: 过滤虚假突破 (<2x)
+4. **L4 - ATR震荡过滤**: 过滤横盘震荡
+
+**参数动态调整**：
+- 所有阈值参数存储在 `strategy_configs` 表
+- 支持按标的、时段、波动率环境进行热更新
+- AI 决策层可通过 MQ 下发参数调整指令
+
+#### 1.5.1.4 退出执行策略 (Exit Execution)
+
+**分层执行逻辑**：
+
+```go
+// 伪代码示例
+func ProcessExitSignal(signal *ExitSignal, position *Position) Decision {
+    switch signal.Type {
+    case ExitTypeStopLoss:
+        // 止损：立即全部平仓，绕过所有限制
+        return Decision{
+            Action:     ActionClose,
+            Ratio:      1.0,           // 100% 平仓
+            Priority:   PriorityEmergency,
+            OrderType:  OrderTypeIOC,  // 立即成交或取消
+            Reason:     "Fast reversal stop loss",
+        }
+        
+    case ExitTypeTakeProfit:
+        // 止盈：分批平仓
+        if signal.Confidence > 0.75 {
+            return Decision{
+                Action:    ActionClosePart,
+                Ratio:     0.5,          // 先平 50%
+                Priority:  PriorityHigh,
+                OrderType: OrderTypeLimit,
+                Reason:    "Take profit with reversal signal",
+            }
+        }
+        
+    case ExitTypeReversal:
+        // 反转信号：根据置信度决定
+        if signal.Confidence > 0.80 {
+            return Decision{
+                Action:    ActionClosePart,
+                Ratio:     0.3,          // 平 30%
+                Priority:  PriorityMedium,
+                Reason:    "High confidence reversal",
+            }
+        }
+    }
+}
+```
+
+**执行通道优先级**：
+- **Stop Loss**: 强制使用 WebSocket 快速通道 (Fallback to REST)
+- **Take Profit**: 优先使用 REST API (更可靠)
+- **Reversal**: 根据市场流动性选择通道
+
+#### 1.5.1.5 风控集成 (Risk Integration)
+
+退出信号通过独立的 **紧急通道** 发送至 Risk Manager：
+
+1. **Stop Loss 信号**: 直接绕过日内交易次数限制
+2. **Take Profit 信号**: 需检查是否会触发 Pattern Day Trader 规则
+3. **Reversal 信号**: 正常风控流程，但优先级高于新开仓
+
+**状态持久化**：
+- 所有退出信号记录到 `exit_signals` 表
+- 用于回测验证与参数优化
+- 生成每日退出质量报告 (Exit Quality Report)
+
 ### 1.3 外部事件分类 (External Events)
 
 ... (表格保持不变) ...
 
-### 1.4 新闻源集成与质量保障
+### 1.4 新闻源集成与质量保障 ⚪ Phase 4+
 
 为了确保 AI 决策层获取及时且真实的数据，系统采用多源交叉验证策略，弃用高延迟的单一聚合商。
+
+> **当前状态**: 设计完成，代码未实现。当前 Phase 3 聚焦核心交易能力。
 
 #### 1.4.1 核心来源评估
 
@@ -218,7 +339,7 @@ graph TD
     *   **链路**: `Gateway` -> `NATS` -> `Strategy` -> `Risk` -> `OMS`。
     *   **特点**: 纳秒级响应，仅处理数值计算。
 
-2.  **AI 智能偏见流 (The Smart Path)**:
+2.  **AI 智能偏见流 (The Smart Path)** ⚪ Phase 4+:
     *   **驱动源**: RSS/Twitter -> `NewsGateway`。
     *   **链路**: `NewsGateway` -> `NATS (market.news)` -> `Python AI Agent` -> `NATS (ai.decision)` -> `Go Strategy/Risk`。
     *   **特点**: 秒级响应，负责提供“交易方向过滤”和“全局风险熔断”。
@@ -342,14 +463,16 @@ type Position struct {
     *   **AckExplicit**: 核心层处理完指令后必须手动 ACK。
 *   **自动恢复**: 客户端启用 `MaxReconnect` (不限次) 和 `ReconnectWait`。
 
-### 4.2 AI 决策层 Fail-safe 机制
+### 4.2 AI 决策层 Fail-safe 机制 ⚪ Phase 4+
 *   **心跳监测 (Heartbeat)**: 
     *   AI 服务 (CrewAI) 每 5 秒发送一次心跳消息至 MQ。
     *   Go 核心层实时监听。
 *   **安全兜底 (Safe-Default Mode)**:
     *   若 Go 核心层超过 **30 秒** 未收到 AI 心跳，自动判定 AI 决策层失联。
-    *   **立即进入保护模式**: 禁止所有新开仓请求，仅允许止损与平仓操作。
+    *   **立即进入保护模式**: 禁止所有新开仓请求,仅允许止损与平仓操作。
     *   **警报优先级**: CRITICAL。
+
+> **注意**: 当前版本无 AI 层，此机制暂不生效。
 *   **状态校准 (Snapshot)**: 
     *   AI 每 30 秒广播一次全量风险状态快照，用于修复可能丢失的增量事件。
 

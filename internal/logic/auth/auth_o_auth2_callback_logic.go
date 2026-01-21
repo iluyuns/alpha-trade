@@ -218,12 +218,14 @@ func (l *AuthOAuth2CallbackLogic) fetchUserInfo(provider string, token *oauth2.T
 }
 
 func (l *AuthOAuth2CallbackLogic) recordAccessLog(uid int64, action, status, reason string) {
-	_, _ = l.svcCtx.UserAccessLogs.Insert(l.ctx, &query.UserAccessLogs{
-		UserID:    uid,
-		IpAddress: ctxval.GetIP(l.ctx),
-		UserAgent: ctxval.GetUA(l.ctx),
-		Action:    action,
-		Status:    status,
-		Reason:    reason,
-	})
+	_ = l.svcCtx.AuditLogs.RecordAction(
+		l.ctx,
+		uid,
+		ctxval.GetIP(l.ctx),
+		action,
+		status,
+		reason,
+		"",
+		false,
+	)
 }

@@ -45,7 +45,7 @@ func (c *UsersCustom) UpdateRevokedAt(ctx context.Context, uid int64, revokedAt 
 
 // GetRevokedAt retrieves the revoked_at timestamp for a user
 func (c *UsersCustom) GetRevokedAt(ctx context.Context, uid int64) (time.Time, error) {
-	user, err := c.Where(c.Field.ID.Eq(uid)).Select(c.Field.RevokedAt).First(ctx)
+	user, err := c.Where(Or(c.Field.ID.Eq(uid))).Select(c.Field.RevokedAt).First(ctx)
 	if err != nil {
 		return time.Time{}, err
 	}
