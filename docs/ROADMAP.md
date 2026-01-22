@@ -105,7 +105,7 @@
 
 ### 4.1 监控与告警
 - [x] 集成 Prometheus (`/metrics`) - 基础指标已实现。
-- [ ] 配置 Grafana Dashboard (实时风控状态可视化)。
+- [x] 配置 Grafana Dashboard (实时风控状态可视化) - Grafana Cloud 配置已完成。
 
 ### 4.2 容器化
 - [x] `Dockerfile` (多阶段构建，Alpine 基础镜像) ✅
