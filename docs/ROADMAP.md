@@ -17,7 +17,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Phase 1** | **核心领域建模 (Kernel)** | ✅ 已完成 | 1 天 | 领域模型(Decimal), 风控核心(带状态), 基础架构 |
 | **Phase 2** | **回测系统构建 (Simulator)** | ✅ 已完成 | 1 天 | Mock交易所, CSV加载器, 波动策略实现, 回测报告 |
-| **Phase 3** | **实盘接入适配 (Real World)** | 🔄 进行中 (30%) | 3-5 天 | Binance API适配, 数据库持久化, 信号执行 |
+| **Phase 3** | **实盘接入适配 (Real World)** | 🔄 进行中 (90%) | 3-5 天 | Binance API适配, 数据库持久化, 信号执行 |
 | **Phase 4** | **生产环境部署 (Production)** | ⚪ 待开始 | 2-3 天 | Docker镜像, 监控面板(Grafana), 告警机器人 |
 
 ---
@@ -53,7 +53,7 @@
 
 ### 1.5 可观测性基建 (Observability)
 - [ ] **Tracing**: 搭建 `pkg/telemetry` 基础骨架。
-- [ ] **Metrics**: 定义核心业务指标 (PnL, Exposure)。
+- [x] **Metrics**: 定义核心业务指标 (PnL, Exposure) - Phase 3 已完成。
 
 ---
 
@@ -81,15 +81,21 @@
 **目标**: 将模拟组件替换为真实交易所适配器，并添加持久化。
 
 ### 3.1 外部适配器 (`internal/gateway`)
-- [ ] **BinanceAdapter**: 基于 `go-binance` 封装 REST/WS。
+- [x] **BinanceAdapter**: 基于 `go-binance` 封装 REST/WS (SpotClient + WSClient)。
 - [ ] **NewsAdapter**: 接入新闻源 API (如 CryptoCompare/Calendar) - Phase 4+。
 
 ### 3.2 基础设施 (`internal/infra`)
-- [ ] **Persistence**: 实现 MySQL/PG 存储交易记录。
-- [ ] **Redis**: 实现 `RiskRepo` 的 Redis 版本 (状态持久化)。
+- [x] **Persistence**: 实现 PostgreSQL 存储交易记录 (OrderRepo + RiskRepo)。
+- [x] **Redis**: 实现 `RiskRepo` 的 Redis 版本 (状态持久化，支持 TTL)。
 
 ### 3.3 订单管理 (`internal/logic/oms`)
-- [ ] **OrderManager**: 订单状态同步与生命周期管理。
+- [x] **OrderManager**: 订单状态同步与生命周期管理 (集成风控检查)。
+
+### 3.4 集成测试
+- [x] **端到端测试框架**: 验证 Strategy -> RiskManager -> OMS -> Gateway -> OrderRepo 完整链路。
+
+### 3.5 可观测性
+- [x] **Prometheus Metrics**: 基础指标集成 (订单、风控、PnL、延迟)。
 
 ---
 
@@ -98,7 +104,7 @@
 **目标**: 提高系统的健壮性与可观测性。
 
 ### 4.1 监控与告警
-- [ ] 集成 Prometheus (`/metrics`)。
+- [x] 集成 Prometheus (`/metrics`) - 基础指标已实现。
 - [ ] 配置 Grafana Dashboard (实时风控状态可视化)。
 
 ### 4.2 容器化
