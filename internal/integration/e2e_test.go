@@ -10,6 +10,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/gateway/mock"
 	"github.com/iluyuns/alpha-trade/internal/infra/order"
 	"github.com/iluyuns/alpha-trade/internal/infra/risk"
+	"github.com/iluyuns/alpha-trade/internal/logic/oms"
 	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
 	"github.com/iluyuns/alpha-trade/internal/strategy"
 )
@@ -258,6 +259,112 @@ func TestE2E_StrategyIntegration(t *testing.T) {
 	t.Logf("✅ 策略集成测试完成: ActiveOrders=%d", len(activeOrders))
 }
 
+// TestE2E_OMSIntegration OMS 集成测试
+// 验证：Strategy -> RiskManager -> OMS -> Gateway -> OrderRepo 完整链路
+func TestE2E_OMSIntegration(t *testing.T) {
+	ctx := context.Background()
+	accountID := "oms-e2e-test"
+	initialCapital := model.MustMoney("10000")
+	symbol := "BTCUSDT"
+	currentPrice := model.MustMoney("50000")
+
+	setup := setupTradingSystem(t, accountID, initialCapital, symbol, currentPrice)
+	defer setup.cleanup()
+
+	// 创建 OMS
+	orderMgr := oms.NewManager(setup.exchange, setup.orderRepo, setup.riskMgr, oms.Config{
+		AutoSync: false, // 测试中禁用自动同步
+	})
+
+	t.Run("OMS完整下单流程", func(t *testing.T) {
+		req := &oms.PlaceOrderRequest{
+			ClientOrderID: "oms-e2e-order-1",
+			Symbol:        symbol,
+			Side:          model.OrderSideBuy,
+			Type:          model.OrderTypeMarket,
+			Quantity:      model.MustMoney("0.04"), // 20% of 10000
+			CurrentPrice:  currentPrice,
+			AccountID:     accountID,
+		}
+
+		// 通过 OMS 下单（自动经过风控检查）
+		order, err := orderMgr.PlaceOrder(ctx, req)
+		if err != nil {
+			t.Fatalf("OMS PlaceOrder failed: %v", err)
+		}
+
+		if order.ClientOrderID != "oms-e2e-order-1" {
+			t.Errorf("ClientOrderID mismatch: got %s, want oms-e2e-order-1", order.ClientOrderID)
+		}
+
+		// 验证订单已保存到 OrderRepo
+		savedOrder, err := setup.orderRepo.GetOrder(ctx, "oms-e2e-order-1")
+		if err != nil {
+			t.Fatalf("GetOrder failed: %v", err)
+		}
+
+		if savedOrder.Status != model.OrderStatusFilled {
+			t.Errorf("Order status mismatch: got %s, want FILLED", savedOrder.Status)
+		}
+
+		t.Logf("✅ OMS 下单完成: OrderID=%s, Status=%s", savedOrder.ClientOrderID, savedOrder.Status)
+	})
+
+	t.Run("OMS风控拦截", func(t *testing.T) {
+		req := &oms.PlaceOrderRequest{
+			ClientOrderID: "oms-e2e-order-blocked",
+			Symbol:        symbol,
+			Side:          model.OrderSideBuy,
+			Type:          model.OrderTypeMarket,
+			Quantity:      model.MustMoney("0.1"), // 50% > 30% limit
+			CurrentPrice:  currentPrice,
+			AccountID:     accountID,
+		}
+
+		_, err := orderMgr.PlaceOrder(ctx, req)
+		if err == nil {
+			t.Error("Order should be rejected by OMS (via RiskManager)")
+		}
+
+		t.Logf("✅ OMS 风控拦截成功: %v", err)
+	})
+
+	t.Run("OMS订单状态同步", func(t *testing.T) {
+		// 先下一个订单
+		req := &oms.PlaceOrderRequest{
+			ClientOrderID: "oms-e2e-sync-order",
+			Symbol:        symbol,
+			Side:          model.OrderSideBuy,
+			Type:          model.OrderTypeMarket,
+			Quantity:      model.MustMoney("0.02"),
+			CurrentPrice:  currentPrice,
+			AccountID:     accountID,
+		}
+
+		_, err := orderMgr.PlaceOrder(ctx, req)
+		if err != nil {
+			t.Fatalf("PlaceOrder failed: %v", err)
+		}
+
+		// 同步订单状态
+		if err := orderMgr.SyncOrderStatus(ctx, "oms-e2e-sync-order"); err != nil {
+			t.Fatalf("SyncOrderStatus failed: %v", err)
+		}
+
+		// 验证状态已同步
+		order, err := orderMgr.GetOrder(ctx, "oms-e2e-sync-order")
+		if err != nil {
+			t.Fatalf("GetOrder failed: %v", err)
+		}
+
+		if !order.IsFilled() {
+			t.Errorf("Order should be filled: status=%s", order.Status)
+		}
+
+		t.Logf("✅ OMS 状态同步完成: Status=%s", order.Status)
+	})
+}
+
 // TestE2E_StatePersistence 状态持久化测试
 // 验证：RiskRepo 和 OrderRepo 的状态持久化与恢复
 func TestE2E_StatePersistence(t *testing.T) {
@@ -366,7 +473,7 @@ func setupTradingSystem(t *testing.T, accountID string, initialCapital model.Mon
 		riskRepo:  riskRepo,
 		orderRepo: orderRepo,
 		riskMgr:   riskMgr,
-		cleanup:   func() {
+		cleanup: func() {
 			// 清理资源（内存仓储无需特殊清理）
 		},
 	}
