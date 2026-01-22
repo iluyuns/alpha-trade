@@ -1,0 +1,95 @@
+# Grafana Cloud 告警规则配置
+# 这些规则可以在 Grafana Cloud Alerting 中手动创建，或通过 API 导入
+
+groups:
+  - name: alpha_trade_alerts
+    interval: 30s
+    rules:
+      # 告警 1: 熔断器触发
+      - alert: CircuitBreakerOpened
+        expr: sum(increase(alpha_trade_circuit_breaker_opened_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: risk
+        annotations:
+          summary: "熔断器已触发"
+          description: "风控熔断器在 5 分钟内被触发，系统已暂停交易"
+
+      # 告警 2: 连续亏损过多
+      - alert: ConsecutiveLossesHigh
+        expr: alpha_trade_consecutive_losses >= 3
+        for: 2m
+        labels:
+          severity: warning
+          component: risk
+        annotations:
+          summary: "连续亏损次数过高"
+          description: "当前连续亏损次数: {{ $value }}，已达到阈值 3"
+
+      # 告警 3: 风控拦截率过高
+      - alert: HighRiskRejectionRate
+        expr: |
+          sum(rate(alpha_trade_risk_checks_blocked_total[5m])) 
+          / 
+          sum(rate(alpha_trade_risk_checks_total[5m])) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: risk
+        annotations:
+          summary: "风控拦截率过高"
+          description: "订单拦截率超过 20%，当前值: {{ $value | humanizePercentage }}"
+
+      # 告警 4: 系统延迟过高
+      - alert: HighOrderLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(alpha_trade_order_latency_seconds_bucket[5m])) by (le)
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "订单处理延迟过高"
+          description: "订单延迟 P95 超过 1 秒，当前值: {{ $value }}s"
+
+      # 告警 5: 大额亏损
+      - alert: LargeDailyLoss
+        expr: alpha_trade_pnl_daily < -1000
+        for: 1m
+        labels:
+          severity: critical
+          component: pnl
+        annotations:
+          summary: "当日大额亏损"
+          description: "当日亏损超过 $1000，当前值: ${{ $value }}"
+
+      # 告警 6: 订单拒绝率过高
+      - alert: HighOrderRejectionRate
+        expr: |
+          sum(rate(alpha_trade_orders_rejected_total[5m])) 
+          / 
+          sum(rate(alpha_trade_orders_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: orders
+        annotations:
+          summary: "订单拒绝率过高"
+          description: "订单拒绝率超过 10%，当前值: {{ $value | humanizePercentage }}"
+
+      # 告警 7: 风控检查延迟过高
+      - alert: HighRiskCheckLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(alpha_trade_risk_check_latency_seconds_bucket[5m])) by (le)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+        annotations:
+          summary: "风控检查延迟过高"
+          description: "风控检查延迟 P95 超过 100ms，当前值: {{ $value }}s"
