@@ -8,6 +8,7 @@ import (
 
 	auth "github.com/iluyuns/alpha-trade/internal/handler/auth"
 	authpasskey "github.com/iluyuns/alpha-trade/internal/handler/auth/passkey"
+	"github.com/iluyuns/alpha-trade/internal/handler/metrics"
 	system "github.com/iluyuns/alpha-trade/internal/handler/system"
 	"github.com/iluyuns/alpha-trade/internal/svc"
 
@@ -15,6 +16,13 @@ import (
 )
 
 func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
+	// Prometheus metrics 端点
+	server.AddRoute(rest.Route{
+		Method:  http.MethodGet,
+		Path:    "/metrics",
+		Handler: metrics.MetricsHandler(),
+	})
+
 	server.AddRoutes(
 		[]rest.Route{
 			{

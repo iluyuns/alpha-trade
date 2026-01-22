@@ -7,6 +7,7 @@ import (
 
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
 	"github.com/iluyuns/alpha-trade/internal/domain/port"
+	"github.com/iluyuns/alpha-trade/internal/pkg/metrics"
 )
 
 // OrderContext 订单上下文（风控检查输入）
@@ -76,9 +77,13 @@ func NewManager(repo port.RiskRepo, config RiskConfig) *Manager {
 // CheckPreTrade 交易前风控检查（核心入口）
 // 按规则顺序短路评估：CircuitBreaker -> PositionLimit -> FatFinger
 func (m *Manager) CheckPreTrade(ctx context.Context, req *OrderContext) (DecisionDetail, error) {
+	startTime := time.Now()
+	metrics.DefaultMetrics.RiskChecksTotal.Inc()
+
 	// 1. 加载风控状态
 	state, err := m.loadState(ctx, req.AccountID, "")
 	if err != nil {
+		metrics.DefaultMetrics.RiskChecksBlocked.Inc()
 		return NewBlock("failed to load risk state", "internal"), err
 	}
 
@@ -98,9 +103,19 @@ func (m *Manager) CheckPreTrade(ctx context.Context, req *OrderContext) (Decisio
 	for _, rule := range rules {
 		decision := rule(ctx, req, state)
 		if !decision.IsAllowed() {
+			// 记录延迟
+			metrics.DefaultMetrics.RiskCheckLatency.Observe(time.Since(startTime).Seconds())
+			metrics.DefaultMetrics.RiskChecksBlocked.Inc()
+			if decision.IsBlocked() && decision.TriggeredRule == "circuit_breaker" {
+				metrics.DefaultMetrics.CircuitBreakerOpened.Inc()
+			}
 			return decision, nil
 		}
 	}
+
+	// 记录延迟
+	metrics.DefaultMetrics.RiskCheckLatency.Observe(time.Since(startTime).Seconds())
+	metrics.DefaultMetrics.RiskChecksAllowed.Inc()
 
 	return NewAllow(), nil
 }

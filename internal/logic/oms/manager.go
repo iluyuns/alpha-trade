@@ -9,6 +9,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
 	"github.com/iluyuns/alpha-trade/internal/domain/port"
 	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
+	"github.com/iluyuns/alpha-trade/internal/pkg/metrics"
 )
 
 // Manager 订单管理系统（Order Management System）
@@ -104,14 +105,25 @@ func (m *Manager) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*mode
 		ProtectPrice:  req.ProtectPrice,
 	}
 
+	startTime := time.Now()
 	order, err := m.spotGateway.PlaceOrder(ctx, gatewayReq)
 	if err != nil {
+		metrics.DefaultMetrics.OrdersRejected.Inc()
 		return nil, fmt.Errorf("gateway place order failed: %w", err)
 	}
+
+	// 记录订单延迟
+	metrics.DefaultMetrics.OrderLatency.Observe(time.Since(startTime).Seconds())
 
 	// 4. 持久化订单
 	if err := m.orderRepo.SaveOrder(ctx, order); err != nil {
 		return nil, fmt.Errorf("save order failed: %w", err)
+	}
+
+	// 更新指标
+	metrics.DefaultMetrics.OrdersTotal.Inc()
+	if order.IsFilled() {
+		metrics.DefaultMetrics.OrdersFilled.Inc()
 	}
 
 	return order, nil
@@ -144,6 +156,9 @@ func (m *Manager) CancelOrder(ctx context.Context, clientOrderID string) error {
 	if err := m.orderRepo.UpdateOrderStatus(ctx, clientOrderID, model.OrderStatusCancelled); err != nil {
 		return fmt.Errorf("update order status failed: %w", err)
 	}
+
+	// 更新指标
+	metrics.DefaultMetrics.OrdersCancelled.Inc()
 
 	return nil
 }
