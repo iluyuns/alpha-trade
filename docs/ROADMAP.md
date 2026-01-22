@@ -108,7 +108,8 @@
 - [ ] 配置 Grafana Dashboard (实时风控状态可视化)。
 
 ### 4.2 容器化
-- [ ] `Dockerfile` & `docker-compose.yml`。
+- [x] `Dockerfile` (多阶段构建，Alpine 基础镜像) ✅
+- [x] `docker-compose.yml` (应用服务集成) ✅
 
 ### 4.3 告警通知
 - [ ] 集成 Telegram/Lark Bot。
