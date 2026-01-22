@@ -29,11 +29,15 @@ services:
     depends_on:
       - redis
 
-  # Redis - RSSHub 缓存
+  # Redis - RSSHub 缓存 + 应用缓存
   redis:
     image: redis:alpine
     container_name: alpha-trade-redis
     restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
   # PostgreSQL - 行情/事件数据存储
   postgres:
@@ -89,9 +93,41 @@ services:
     ports:
       - "9090:9090"
     restart: always
+    depends_on:
+      - alpha-trade
+
+  # Alpha-Trade 应用
+  alpha-trade:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alpha-trade-app
+    ports:
+      - "8888:8888"  # API 端口
+      - "9091:9091"  # Prometheus metrics 端口
+    environment:
+      - DB_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_SUDO_SECRET=${AUTH_SUDO_SECRET}
+    volumes:
+      - ./logs:/app/logs
+      - ./etc/alpha_trade.yaml:/app/etc/alpha_trade.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/api/v1/system/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   nats_data:
   pg_data:
+  redis_data:
 
 

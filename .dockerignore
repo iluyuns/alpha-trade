@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 文档
+docs/
+*.md
+!README.md
+
+# 测试
+*_test.go
+testdata/
+coverage.out
+
+# 构建产物
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 日志
+logs/
+*.log
+
+# 临时文件
+tmp/
+temp/
+.DS_Store
+*.tmp
+
+# 环境配置
+.env
+.env.local
+.env.*.local
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 其他
+node_modules/
+vendor/
