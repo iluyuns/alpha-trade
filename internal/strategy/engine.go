@@ -58,14 +58,42 @@ type Engine struct {
 	spotGateway   port.SpotGateway
 	futureGateway port.FutureGateway
 	accountID     string
+	oms           OMSInterface // OMS 接口（可选，如果提供则通过 OMS 下单）
 }
 
-// NewEngine 创建策略引擎
+// OMSInterface OMS 接口（避免循环依赖）
+type OMSInterface interface {
+	PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*model.Order, error)
+}
+
+// PlaceOrderRequest OMS 下单请求（简化版，避免导入 oms 包）
+type PlaceOrderRequest struct {
+	ClientOrderID string
+	Symbol        string
+	Side          model.OrderSide
+	Type          model.OrderType
+	Price         model.Money
+	Quantity      model.Money
+	CurrentPrice  model.Money
+	AccountID     string
+	ProtectPrice  model.Money
+}
+
+// NewEngine 创建策略引擎（直接调用 Gateway，不经过 OMS）
 func NewEngine(strategy Strategy, spotGateway port.SpotGateway, accountID string) *Engine {
 	return &Engine{
 		strategy:    strategy,
 		spotGateway: spotGateway,
 		accountID:   accountID,
+	}
+}
+
+// NewEngineWithOMS 创建策略引擎（通过 OMS 下单，集成风控）
+func NewEngineWithOMS(strategy Strategy, oms OMSInterface, accountID string) *Engine {
+	return &Engine{
+		strategy:  strategy,
+		oms:       oms,
+		accountID: accountID,
 	}
 }
 
@@ -97,7 +125,26 @@ func (e *Engine) executeSignal(ctx context.Context, signal *TradeSignal) error {
 		side = model.OrderSideSell
 	}
 
-	// 下单
+	// 如果配置了 OMS，通过 OMS 下单（集成风控）
+	if e.oms != nil {
+		_, err := e.oms.PlaceOrder(ctx, &PlaceOrderRequest{
+			ClientOrderID: generateOrderID(signal.Symbol),
+			Symbol:        signal.Symbol,
+			Side:          side,
+			Type:          model.OrderTypeMarket,
+			Price:         signal.Price,
+			Quantity:      signal.Quantity,
+			CurrentPrice:  signal.Price, // 使用信号价格作为当前价格
+			AccountID:     e.accountID,
+		})
+		return err
+	}
+
+	// 否则直接调用 Gateway（兼容旧代码）
+	if e.spotGateway == nil {
+		return nil // 如果没有 Gateway 也没有 OMS，跳过
+	}
+
 	_, err := e.spotGateway.PlaceOrder(ctx, &port.SpotPlaceOrderRequest{
 		ClientOrderID: generateOrderID(signal.Symbol),
 		Symbol:        signal.Symbol,

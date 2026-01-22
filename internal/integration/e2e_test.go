@@ -226,8 +226,14 @@ func TestE2E_StrategyIntegration(t *testing.T) {
 	threshold := model.MustMoney("0.02")
 	strat := strategy.NewSimpleVolatility(symbol, threshold)
 
-	// 创建策略引擎（集成风控）
-	engine := strategy.NewEngine(strat, setup.exchange, accountID)
+	// 创建 OMS
+	orderMgr := oms.NewManager(setup.exchange, setup.orderRepo, setup.riskMgr, oms.Config{
+		AutoSync: false,
+	})
+
+	// 创建策略引擎（通过 OMS 下单，集成风控）
+	omsAdapter := oms.NewStrategyOMSAdapter(orderMgr)
+	engine := strategy.NewEngineWithOMS(strat, omsAdapter, accountID)
 
 	// 创建K线数据
 	candle := &model.Candle{
@@ -242,9 +248,7 @@ func TestE2E_StrategyIntegration(t *testing.T) {
 		Volume:    model.MustMoney("100"),
 	}
 
-	// 处理K线（策略会生成信号并尝试下单）
-	// 注意：当前 Strategy Engine 直接调用 Gateway，未集成 RiskManager
-	// 这是 Phase 3 的已知限制，未来 OMS 会统一管理
+	// 处理K线（策略会生成信号并通过 OMS 下单，自动经过风控检查）
 	err := engine.ProcessCandle(ctx, candle)
 	if err != nil {
 		t.Logf("策略处理K线（可能因风控拦截）: %v", err)
@@ -256,7 +260,7 @@ func TestE2E_StrategyIntegration(t *testing.T) {
 		t.Fatalf("查询活跃订单失败: %v", err)
 	}
 
-	t.Logf("✅ 策略集成测试完成: ActiveOrders=%d", len(activeOrders))
+	t.Logf("✅ 策略集成测试完成（通过OMS）: ActiveOrders=%d", len(activeOrders))
 }
 
 // TestE2E_OMSIntegration OMS 集成测试
