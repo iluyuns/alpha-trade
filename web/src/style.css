@@ -1,0 +1,40 @@
+:root {
+  font-family: var(--font-family);
+  line-height: 1.5;
+  font-weight: var(--font-weight-regular);
+
+  color-scheme: light dark;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--color-bg-page-gradient, var(--color-bg-page));
+}
+
+button {
+  font-family: var(--font-family);
+  cursor: pointer;
+  border: none;
+  background: none;
+  outline: none;
+}
+

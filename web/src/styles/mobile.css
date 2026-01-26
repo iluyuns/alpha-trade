@@ -1,0 +1,54 @@
+/* 移动端优化 */
+@media (max-width: 767px) {
+  body {
+    font-size: var(--font-size-sm);
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* 安全区域适配（iOS notch） */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* 触摸优化 */
+  button, a, [role="button"] {
+    min-height: var(--touch-target);
+    min-width: var(--touch-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* 防止双击缩放 */
+  * {
+    touch-action: manipulation;
+  }
+  
+  /* 滚动优化 */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+}
+
+/* 平板适配 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* 平板特定样式 */
+}
+
+/* 桌面端 */
+@media (min-width: 1024px) {
+  /* 桌面端特定样式 */
+}

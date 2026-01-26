@@ -1,0 +1,60 @@
+syntax = "v1"
+
+info (
+	title:   "Trading Control API"
+	desc:    "交易控制接口：启动/停止交易、查询状态"
+	version: "v1"
+)
+
+type (
+	// TradingStatusResponse 交易状态响应
+	TradingStatusResponse {
+		Enabled    bool     `json:"enabled"`     // 交易是否启用
+		Started    bool     `json:"started"`     // 交易循环是否已启动
+		Mode       string   `json:"mode"`        // 交易模式: auto/manual/hybrid
+		Symbols    []string `json:"symbols"`     // 交易对列表
+		Interval   string   `json:"interval"`    // K线周期
+		Strategy   string   `json:"strategy"`    // 策略类型
+		Message    string   `json:"message,optional"` // 状态消息
+	}
+
+	// TradingStartResponse 启动交易响应
+	TradingStartResponse {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+
+	// TradingStopResponse 停止交易响应
+	TradingStopResponse {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+	}
+)
+
+@server (
+	prefix: /api/v1/trading
+	group:  trading
+	tags:   "交易控制"
+	middleware: Auth, MFA
+)
+service alpha_trade {
+	@doc (
+		summary: "查询交易状态"
+	)
+	@handler TradingStatus
+	get /status returns (TradingStatusResponse)
+
+	@doc (
+		summary: "启动交易循环"
+		desc: "仅在 manual 或 hybrid 模式下可用，auto 模式会自动启动"
+	)
+	@handler TradingStart
+	post /start returns (TradingStartResponse)
+
+	@doc (
+		summary: "停止交易循环"
+		desc: "停止交易循环，但不会禁用交易功能"
+	)
+	@handler TradingStop
+	post /stop returns (TradingStopResponse)
+}

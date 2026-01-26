@@ -29,3 +29,35 @@ Telemetry:
 # 注意：生产环境应通过环境变量 DB_URL 注入，此处占位符仅用于本地开发映射
 Database:
   DataSource: ${DB_URL}
+
+# 交易配置（仅在 TRADING_ENABLED=true 时生效）
+Trading:
+  Enabled: ${TRADING_ENABLED}  # 默认 false，避免误启动
+  Mode: ${TRADING_MODE}  # auto/manual/hybrid
+  Symbols:
+    - BTCUSDT  # 从环境变量 TRADING_SYMBOLS 解析（逗号分隔）
+  KlineInterval: ${TRADING_KLINE_INTERVAL}  # 默认 1m
+  StrategyType: ${TRADING_STRATEGY_TYPE}  # 默认 simple_volatility
+  StrategyParams:
+    threshold: "0.02"  # 波动阈值（2%）
+
+# Binance API 配置
+Binance:
+  APIKey: ${BINANCE_API_KEY}
+  APISecret: ${BINANCE_API_SECRET}
+  Testnet: ${BINANCE_TESTNET}  # 默认 true，使用测试网
+
+# 风控配置
+Risk:
+  RepoType: ${RISK_REPO_TYPE}  # redis 或 postgres，默认 redis
+  MaxConsecutiveLosses: 3
+  MaxDailyDrawdown: 0.05  # 5%
+  MaxTotalMDD: 0.15  # 15%
+  MaxSinglePositionPercent: 0.3  # 30%
+  MaxTotalExposurePercent: 0.7  # 70%
+  MinCashReservePercent: 0.3  # 30%
+  MaxLeverage: 2
+
+# Redis 配置（如果使用 Redis RiskRepo）
+Redis:
+  URL: ${REDIS_URL}  # 默认 redis://localhost:6379/0

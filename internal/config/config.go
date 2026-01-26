@@ -38,4 +38,39 @@ type Config struct {
 			ClientID     string `json:",optional,env=OAUTH_GITHUB_CLIENT_ID"`
 		} `json:"github"`
 	}
+
+	// Trading 交易配置
+	Trading struct {
+		Enabled      bool     `json:",optional,env=TRADING_ENABLED,default=false"`      // 是否启用交易
+		Mode         string   `json:",optional,env=TRADING_MODE,default=manual"`          // auto/manual/hybrid
+		Symbols      []string `json:",optional,env=TRADING_SYMBOLS"`                      // 交易对列表（逗号分隔）
+		KlineInterval string  `json:",optional,env=TRADING_KLINE_INTERVAL,default=1m"`  // K线周期
+		StrategyType string  `json:",optional,env=TRADING_STRATEGY_TYPE,default=simple_volatility"` // 策略类型
+		StrategyParams map[string]interface{} `json:",optional"` // 策略参数
+	}
+
+	// Binance API 配置
+	Binance struct {
+		APIKey    string `json:",optional,env=BINANCE_API_KEY"`
+		APISecret string `json:",optional,env=BINANCE_API_SECRET"`
+		Testnet   bool   `json:",optional,env=BINANCE_TESTNET,default=true"` // 默认使用测试网
+	}
+
+	// Risk 风控配置
+	Risk struct {
+		RepoType string `json:",optional,env=RISK_REPO_TYPE,default=redis"` // "redis" 或 "postgres"
+		// 风控规则配置
+		MaxConsecutiveLosses int     `json:",optional,default=3"`
+		MaxDailyDrawdown     float64 `json:",optional,default=0.05"`  // 5%
+		MaxTotalMDD          float64 `json:",optional,default=0.15"`  // 15%
+		MaxSinglePositionPercent float64 `json:",optional,default=0.3"` // 30%
+		MaxTotalExposurePercent  float64 `json:",optional,default=0.7"` // 70%
+		MinCashReservePercent    float64 `json:",optional,default=0.3"` // 30%
+		MaxLeverage int `json:",optional,default=2"`
+	}
+
+	// Redis 配置（用于 RiskRepo）
+	Redis struct {
+		URL string `json:",optional,env=REDIS_URL,default=redis://localhost:6379/0"`
+	}
 }

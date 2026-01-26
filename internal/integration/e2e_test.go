@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/iluyuns/alpha-trade/internal/core/oms"
+	risklogic "github.com/iluyuns/alpha-trade/internal/core/risk"
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
 	"github.com/iluyuns/alpha-trade/internal/domain/port"
 	"github.com/iluyuns/alpha-trade/internal/gateway/mock"
 	"github.com/iluyuns/alpha-trade/internal/infra/order"
 	"github.com/iluyuns/alpha-trade/internal/infra/risk"
-	"github.com/iluyuns/alpha-trade/internal/logic/oms"
-	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
 	"github.com/iluyuns/alpha-trade/internal/strategy"
 )
 

@@ -8,21 +8,16 @@ import (
 
 	auth "github.com/iluyuns/alpha-trade/internal/handler/auth"
 	authpasskey "github.com/iluyuns/alpha-trade/internal/handler/auth/passkey"
-	"github.com/iluyuns/alpha-trade/internal/handler/metrics"
+	dashboard "github.com/iluyuns/alpha-trade/internal/handler/dashboard"
+	notifications "github.com/iluyuns/alpha-trade/internal/handler/notifications"
 	system "github.com/iluyuns/alpha-trade/internal/handler/system"
+	trading "github.com/iluyuns/alpha-trade/internal/handler/trading"
 	"github.com/iluyuns/alpha-trade/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
 )
 
 func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
-	// Prometheus metrics 端点
-	server.AddRoute(rest.Route{
-		Method:  http.MethodGet,
-		Path:    "/metrics",
-		Handler: metrics.MetricsHandler(),
-	})
-
 	server.AddRoutes(
 		[]rest.Route{
 			{
@@ -43,6 +38,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/oauth2/callback",
 				Handler: auth.AuthOAuth2CallbackHandler(serverCtx),
 			},
+			{
+				// 发起 OAuth2 登录 (重定向到 Google/GitHub)
+				Method:  http.MethodGet,
+				Path:    "/oauth2/init",
+				Handler: auth.AuthOAuth2InitHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/api/v1/auth"),
 	)
@@ -51,12 +52,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		rest.WithMiddlewares(
 			[]rest.Middleware{serverCtx.Auth},
 			[]rest.Route{
-				{
-					// 发起 OAuth2 登录 (重定向到 Google/GitHub)
-					Method:  http.MethodGet,
-					Path:    "/oauth2/init",
-					Handler: auth.AuthOAuth2InitHandler(serverCtx),
-				},
 				{
 					// 绑定新的 Passkey (需已登录)
 					Method:  http.MethodPost,
@@ -103,6 +98,48 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.Auth, serverCtx.MFA},
 			[]rest.Route{
 				{
+					// 获取 Dashboard 数据
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: dashboard.DashboardHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/dashboard"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.Auth, serverCtx.MFA},
+			[]rest.Route{
+				{
+					// 订阅 Web Push 通知
+					Method:  http.MethodPost,
+					Path:    "/subscribe",
+					Handler: notifications.SubscribeHandler(serverCtx),
+				},
+				{
+					// 发送测试通知
+					Method:  http.MethodPost,
+					Path:    "/test",
+					Handler: notifications.SendTestHandler(serverCtx),
+				},
+				{
+					// 取消订阅 Web Push 通知
+					Method:  http.MethodPost,
+					Path:    "/unsubscribe",
+					Handler: notifications.UnsubscribeHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/notifications"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.Auth, serverCtx.MFA},
+			[]rest.Route{
+				{
 					// Get System Info
 					Method:  http.MethodGet,
 					Path:    "/info",
@@ -111,5 +148,32 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/api/v1/system"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.Auth, serverCtx.MFA},
+			[]rest.Route{
+				{
+					// 启动交易循环
+					Method:  http.MethodPost,
+					Path:    "/start",
+					Handler: trading.TradingStartHandler(serverCtx),
+				},
+				{
+					// 查询交易状态
+					Method:  http.MethodGet,
+					Path:    "/status",
+					Handler: trading.TradingStatusHandler(serverCtx),
+				},
+				{
+					// 停止交易循环
+					Method:  http.MethodPost,
+					Path:    "/stop",
+					Handler: trading.TradingStopHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/api/v1/trading"),
 	)
 }

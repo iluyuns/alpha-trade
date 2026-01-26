@@ -17,6 +17,9 @@ info (
 
 import (
 	"./auth/auth.api"
+	"./dashboard/dashboard.api"
+	"./notifications/push.api"
 	"./system/system.api"
+	"./trading/trading.api"
 )
 

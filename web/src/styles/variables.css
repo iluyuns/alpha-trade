@@ -1,0 +1,114 @@
+:root {
+  /* iOS 26 液体玻璃颜色系统 - 柔和半透明 */
+  --color-primary: #0A84FF;
+  --color-primary-hover: #409CFF;
+  --color-primary-active: #0051D5;
+  
+  --color-danger: #FF453A;
+  --color-danger-hover: #FF6961;
+  --color-danger-active: #D70015;
+  
+  --color-success: #32D74B;
+  --color-success-hover: #64DE75;
+  --color-success-active: #28A745;
+  
+  --color-warning: #FF9F0A;
+  --color-warning-hover: #FFB340;
+  --color-warning-active: #FF8C00;
+  
+  --color-info: #64D2FF;
+  --color-info-hover: #7DD3FF;
+  --color-info-active: #5AC8FA;
+  
+  /* iOS 26 液体玻璃文本颜色 - 更柔和 */
+  --color-text-primary: rgba(0, 0, 0, 0.85);
+  --color-text-regular: rgba(0, 0, 0, 0.65);
+  --color-text-secondary: rgba(0, 0, 0, 0.45);
+  --color-text-placeholder: rgba(0, 0, 0, 0.3);
+  
+  /* iOS 26 液体玻璃分隔线 - 更透明 */
+  --color-separator: rgba(60, 60, 67, 0.18);
+  --color-separator-opaque: rgba(198, 198, 200, 0.5);
+  
+  /* Apple Store 风格背景色 - 纯白/浅灰 */
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f5f5f7;
+  --color-bg-tertiary: #fafafa;
+  --color-bg-page: #ffffff;
+  --color-bg-page-gradient: linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+  --color-bg-grouped: #f5f5f7;
+  
+  /* iOS 26 液体玻璃侧边栏背景 */
+  --color-sidebar-bg: rgba(242, 242, 247, 0.5);
+  --color-sidebar-selected: rgba(10, 132, 255, 0.15);
+  
+  /* 液体玻璃模糊效果 - iOS 26 增强版 */
+  --glass-blur: blur(50px) saturate(190%);
+  --glass-blur-strong: blur(70px) saturate(210%);
+  --glass-opacity: 0.75;
+  --glass-opacity-strong: 0.85;
+  
+  /* 多层阴影系统 */
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-glass-strong: 0 12px 48px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  
+  /* 间距系统 (iOS 标准) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  
+  /* iOS 圆角 */
+  --border-radius-sm: 6px;
+  --border-radius: 10px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  --border-radius-round: 9999px;
+  
+  /* iOS 阴影 */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  
+  /* 触摸目标 (iOS 最小 44x44pt) */
+  --touch-target: 44px;
+  
+  /* iOS 字体系统 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 17px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 28px;
+  --font-size-xxxl: 34px;
+  
+  /* iOS 字重 */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* iOS 动画 (Spring) */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+  --transition-base: 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+  --transition-spring: 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* Z-index */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1020;
+  --z-index-fixed: 1030;
+  --z-index-modal-backdrop: 1040;
+  --z-index-modal: 1050;
+  --z-index-popover: 1060;
+  --z-index-tooltip: 1070;
+  --z-index-toast: 1080;
+}
+
+/* Apple Store 风格 - 强制浅色主题，不使用深色模式 */
+/* 注释掉深色模式，保持 Apple Store 的浅色风格 */

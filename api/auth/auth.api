@@ -18,6 +18,10 @@ type (
 	OAuth2Request {
 		Provider string `json:"provider"` // "google", "github"
 	}
+	// OAuth2InitResponse
+	OAuth2InitResponse {
+		RedirectURL string `json:"redirect_url"` 
+	}
 	// OAuth2CallbackResponse OAuth 回调结果
 	OAuth2CallbackResponse {
 		Code  string `json:"code"`
@@ -57,7 +61,7 @@ service alpha_trade {
 		summary: "发起 OAuth2 登录 (重定向到 Google/GitHub)"
 	)
 	@handler AuthOAuth2Init
-	get /oauth2/init (OAuth2Request)
+	get /oauth2/init (OAuth2InitResponse)
 
 	@doc (
 		summary: "OAuth2 回调 (由第三方平台跳回)"

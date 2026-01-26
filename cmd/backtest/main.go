@@ -11,7 +11,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
 	"github.com/iluyuns/alpha-trade/internal/gateway/mock"
 	"github.com/iluyuns/alpha-trade/internal/infra/risk"
-	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
+	risklogic "github.com/iluyuns/alpha-trade/internal/core/risk"
 	"github.com/iluyuns/alpha-trade/internal/strategy"
 )
 

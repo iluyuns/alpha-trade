@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
@@ -127,7 +128,7 @@ func (e *Engine) executeSignal(ctx context.Context, signal *TradeSignal) error {
 
 	// 如果配置了 OMS，通过 OMS 下单（集成风控）
 	if e.oms != nil {
-		_, err := e.oms.PlaceOrder(ctx, &PlaceOrderRequest{
+		order, err := e.oms.PlaceOrder(ctx, &PlaceOrderRequest{
 			ClientOrderID: generateOrderID(signal.Symbol),
 			Symbol:        signal.Symbol,
 			Side:          side,
@@ -137,7 +138,14 @@ func (e *Engine) executeSignal(ctx context.Context, signal *TradeSignal) error {
 			CurrentPrice:  signal.Price, // 使用信号价格作为当前价格
 			AccountID:     e.accountID,
 		})
-		return err
+		if err != nil {
+			// 记录错误（可能是风控拒绝或 Gateway 错误）
+			// 错误已在 OMS 和 RiskManager 中记录，这里只返回
+			return fmt.Errorf("place order via OMS failed: %w", err)
+		}
+		// 订单成功，记录日志（可选，由调用方决定是否记录）
+		_ = order // 避免未使用变量警告
+		return nil
 	}
 
 	// 否则直接调用 Gateway（兼容旧代码）

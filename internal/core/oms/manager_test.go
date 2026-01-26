@@ -10,7 +10,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/gateway/mock"
 	"github.com/iluyuns/alpha-trade/internal/infra/order"
 	"github.com/iluyuns/alpha-trade/internal/infra/risk"
-	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
+	risklogic "github.com/iluyuns/alpha-trade/internal/core/risk"
 )
 
 func TestManager_PlaceOrder(t *testing.T) {

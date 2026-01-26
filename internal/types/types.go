@@ -27,6 +27,20 @@ type CredentialItem struct {
 	CreatedAt  int64  `json:"createdAt"`
 }
 
+type DashboardReq struct {
+}
+
+type DashboardResp struct {
+	PnLDaily      string             `json:"pnl_daily"`      // 今日盈亏
+	PnLPercent    string             `json:"pnl_percent"`    // 盈亏百分比
+	TotalEquity   string             `json:"total_equity"`   // 当前权益
+	RiskExposure  string             `json:"risk_exposure"`  // 风险敞口
+	DailyDrawdown string             `json:"daily_drawdown"` // 日内回撤
+	SystemHealth  []SystemHealthItem `json:"system_health"`  // 系统健康状态
+	RiskStatus    RiskStatus         `json:"risk_status"`    // 风控状态
+	Strategies    []StrategyOverview `json:"strategies"`     // 策略概览
+}
+
 type ListResponse struct {
 	List []CredentialItem `json:"list"`
 }
@@ -54,7 +68,7 @@ type OAuth2CallbackResponse struct {
 }
 
 type OAuth2InitResponse struct {
-	RedirectURL string `json:"redirectUrl"`
+	RedirectURL string `json:"redirect_url"`
 }
 
 type OAuth2Request struct {
@@ -65,6 +79,54 @@ type RemoveRequest struct {
 	Id int64 `json:"id"`
 }
 
+type RiskStatus struct {
+	ConsecutiveLosses    int64  `json:"consecutive_losses"`         // 连续亏损次数
+	MaxConsecutiveLosses int64  `json:"max_consecutive_losses"`     // 最大连续亏损次数
+	MacroCoolingMode     string `json:"macro_cooling_mode"`         // 宏观冷却模式: active, inactive
+	NextMacroWindow      string `json:"next_macro_window,optional"` // 下一个宏观窗口
+	LeverageStatus       string `json:"leverage_status"`            // 杠杆状态: relaxed, restricted
+	MaxLeverage          string `json:"max_leverage"`               // 最大杠杆
+	CurrentLeverage      string `json:"current_leverage"`           // 当前杠杆
+}
+
+type SendTestReq struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	Data  string `json:"data,optional"`
+}
+
+type SendTestResp struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,optional"`
+}
+
+type StrategyOverview struct {
+	ID        string `json:"id"`              // 策略 ID
+	Name      string `json:"name"`            // 策略名称
+	Symbol    string `json:"symbol"`          // 交易对
+	Direction string `json:"direction"`       // 方向: Long, Short, N/A
+	Status    string `json:"status"`          // 状态: running, stopped, cooling
+	WinRate   string `json:"win_rate"`        // 胜率（百分比）
+	Reason    string `json:"reason,optional"` // 状态原因
+}
+
+type SubscribeReq struct {
+	Subscription string `json:"subscription"` // PushSubscription JSON 字符串
+}
+
+type SubscribeResp struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,optional"`
+}
+
+type SystemHealthItem struct {
+	Name          string `json:"name"`                    // 组件名称
+	Status        string `json:"status"`                  // 状态: normal, warning, error
+	Latency       int64  `json:"latency,optional"`        // 延迟（毫秒）
+	LastHeartbeat string `json:"last_heartbeat,optional"` // 最后心跳时间
+	Message       string `json:"message,optional"`        // 状态消息
+}
+
 type SystemInfoReq struct {
 }
 
@@ -72,6 +134,34 @@ type SystemInfoResp struct {
 	Version    string `json:"version"`     // 版本号
 	BuildTime  string `json:"build_time"`  // 构建时间
 	CommitHash string `json:"commit_hash"` // 提交哈希
+}
+
+type TradingStartResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+type TradingStatusResponse struct {
+	Enabled  bool     `json:"enabled"`          // 交易是否启用
+	Started  bool     `json:"started"`          // 交易循环是否已启动
+	Mode     string   `json:"mode"`             // 交易模式: auto/manual/hybrid
+	Symbols  []string `json:"symbols"`          // 交易对列表
+	Interval string   `json:"interval"`         // K线周期
+	Strategy string   `json:"strategy"`         // 策略类型
+	Message  string   `json:"message,optional"` // 状态消息
+}
+
+type TradingStopResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+type UnsubscribeReq struct {
+	Subscription string `json:"subscription"` // PushSubscription JSON 字符串
+}
+
+type UnsubscribeResp struct {
+	Success bool `json:"success"`
 }
 
 type UserInfo struct {

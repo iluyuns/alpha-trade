@@ -8,7 +8,7 @@ import (
 
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
 	"github.com/iluyuns/alpha-trade/internal/domain/port"
-	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
+	riskmgr "github.com/iluyuns/alpha-trade/internal/core/risk"
 	"github.com/iluyuns/alpha-trade/internal/pkg/metrics"
 )
 
@@ -23,7 +23,7 @@ type Manager struct {
 	// 依赖注入
 	spotGateway port.SpotGateway
 	orderRepo   port.OrderRepo
-	riskMgr     *risklogic.Manager
+	riskMgr     *riskmgr.Manager
 
 	// 配置
 	config Config
@@ -43,7 +43,7 @@ type Config struct {
 func NewManager(
 	spotGateway port.SpotGateway,
 	orderRepo port.OrderRepo,
-	riskMgr *risklogic.Manager,
+	riskMgr *riskmgr.Manager,
 	config Config,
 ) *Manager {
 	if config.SyncInterval == 0 {
@@ -63,7 +63,7 @@ func NewManager(
 // 流程：RiskManager.CheckPreTrade -> Gateway.PlaceOrder -> OrderRepo.SaveOrder
 func (m *Manager) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*model.Order, error) {
 	// 1. 风控检查
-	orderCtx := &risklogic.OrderContext{
+	orderCtx := &riskmgr.OrderContext{
 		ClientOrderID: req.ClientOrderID,
 		Symbol:        req.Symbol,
 		MarketType:    model.MarketTypeSpot,

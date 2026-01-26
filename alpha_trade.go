@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
@@ -39,6 +40,22 @@ func main() {
 	defer server.Stop()
 
 	handler.RegisterHandlers(server, ctx)
+
+	// 如果启用交易且模式为 auto 或 hybrid，自动启动交易循环
+	if c.Trading.Enabled && (c.Trading.Mode == "auto" || c.Trading.Mode == "hybrid") {
+		if ctx.TradingLoop != nil {
+			if err := ctx.TradingLoop.Start(context.Background()); err != nil {
+				logx.Errorf("Failed to start trading loop: %v", err)
+				// 不中断启动，允许 API 服务器继续运行
+			} else {
+				logx.Infof("Trading loop started automatically (mode: %s)", c.Trading.Mode)
+			}
+		} else {
+			logx.Errorf("Trading is enabled but TradingLoop is not initialized. Check configuration.")
+		}
+	} else if c.Trading.Enabled {
+		logx.Infof("Trading is enabled but mode is '%s', trading loop will not start automatically", c.Trading.Mode)
+	}
 
 	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
 	server.Start()

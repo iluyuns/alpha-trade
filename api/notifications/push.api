@@ -1,0 +1,63 @@
+syntax = "v1"
+
+info (
+	title:   "Notifications API"
+	desc:    "Web Push 通知订阅接口"
+	version: "v1"
+)
+
+type (
+	SubscribeReq {
+		Subscription string `json:"subscription"` // PushSubscription JSON 字符串
+	}
+
+	SubscribeResp {
+		Success bool `json:"success"`
+		Message string `json:"message,optional"`
+	}
+
+	UnsubscribeReq {
+		Subscription string `json:"subscription"` // PushSubscription JSON 字符串
+	}
+
+	UnsubscribeResp {
+		Success bool `json:"success"`
+	}
+
+	SendTestReq {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+		Data  string `json:"data,optional"`
+	}
+
+	SendTestResp {
+		Success bool `json:"success"`
+		Message string `json:"message,optional"`
+	}
+)
+
+@server (
+	prefix:     /api/v1/notifications
+	group:      notifications
+	tags:       "通知"
+	middleware: Auth, MFA
+)
+service alpha_trade {
+	@doc (
+		summary: "订阅 Web Push 通知"
+	)
+	@handler Subscribe
+	post /subscribe (SubscribeReq) returns (SubscribeResp)
+
+	@doc (
+		summary: "取消订阅 Web Push 通知"
+	)
+	@handler Unsubscribe
+	post /unsubscribe (UnsubscribeReq) returns (UnsubscribeResp)
+
+	@doc (
+		summary: "发送测试通知"
+	)
+	@handler SendTest
+	post /test (SendTestReq) returns (SendTestResp)
+}

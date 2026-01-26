@@ -7,7 +7,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/domain/model"
 	"github.com/iluyuns/alpha-trade/internal/domain/port"
 	"github.com/iluyuns/alpha-trade/internal/infra/risk"
-	risklogic "github.com/iluyuns/alpha-trade/internal/logic/risk"
+	risklogic "github.com/iluyuns/alpha-trade/internal/core/risk"
 )
 
 // TestIntegration_RiskManager_MockExchange 集成测试
