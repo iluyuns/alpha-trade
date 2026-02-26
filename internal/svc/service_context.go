@@ -10,6 +10,7 @@ import (
 	"github.com/iluyuns/alpha-trade/internal/config"
 	"github.com/iluyuns/alpha-trade/internal/gateway/binance"
 	"github.com/iluyuns/alpha-trade/internal/domain/port"
+	"github.com/iluyuns/alpha-trade/internal/infra/cache"
 	orderrepo "github.com/iluyuns/alpha-trade/internal/infra/order"
 	riskrepo "github.com/iluyuns/alpha-trade/internal/infra/risk"
 	"github.com/iluyuns/alpha-trade/internal/core/oms"
@@ -44,12 +45,14 @@ type ServiceContext struct {
 	// 交易组件（可选，仅在启用交易时初始化）
 	BinanceSpotClient *binance.SpotClient
 	BinanceWSClient   *binance.WSClient
+	PriceCache        *cache.PriceCache
 	OrderRepo         port.OrderRepo
 	RiskRepo          port.RiskRepo
 	RiskManager       *risklogic.Manager
 	OMSManager        *oms.Manager
 	StrategyEngine    *strategy.Engine
 	TradingLoop       *TradingLoop
+	RedisClient       *redis.Client
 }
 
 func (sc *ServiceContext) Close() error {
@@ -69,6 +72,13 @@ func (sc *ServiceContext) Close() error {
 	if sc.BinanceWSClient != nil {
 		if err := sc.BinanceWSClient.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("close websocket client: %w", err))
+		}
+	}
+
+	// 关闭 Redis 连接
+	if sc.RedisClient != nil {
+		if err := sc.RedisClient.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close redis: %w", err))
 		}
 	}
 
@@ -155,15 +165,17 @@ func initTradingComponents(ctx *ServiceContext, c config.Config) error {
 	// 2. 初始化 OrderRepo
 	ctx.OrderRepo = orderrepo.NewPostgresRepo(ctx.DB)
 
-	// 3. 初始化 RiskRepo（根据配置选择 Redis 或 Postgres）
+	// 3. 初始化 Redis 客户端（共享给 RiskRepo + PriceCache）
+	opt, err := redis.ParseURL(c.Redis.URL)
+	if err != nil {
+		return fmt.Errorf("parse redis URL: %w", err)
+	}
+	redisClient := redis.NewClient(opt)
+	ctx.RedisClient = redisClient
+
+	// 4. 初始化 RiskRepo（根据配置选择 Redis 或 Postgres）
 	var riskRepo port.RiskRepo
 	if strings.ToLower(c.Risk.RepoType) == "redis" {
-		// 解析 Redis URL
-		opt, err := redis.ParseURL(c.Redis.URL)
-		if err != nil {
-			return fmt.Errorf("parse redis URL: %w", err)
-		}
-		redisClient := redis.NewClient(opt)
 		riskRepo = riskrepo.NewRedisRepo(redisClient)
 		logx.Infof("Using Redis for risk state storage: %s", c.Redis.URL)
 	} else {
@@ -172,7 +184,10 @@ func initTradingComponents(ctx *ServiceContext, c config.Config) error {
 	}
 	ctx.RiskRepo = riskRepo
 
-	// 4. 初始化 RiskManager
+	// 5. 初始化 PriceCache（装饰 WSClient，自动缓存价格到 Redis）
+	ctx.PriceCache = cache.NewPriceCache(wsClient, redisClient, 5*time.Second)
+
+	// 6. 初始化 RiskManager
 	riskConfig := risklogic.RiskConfig{
 		MaxConsecutiveLosses:       c.Risk.MaxConsecutiveLosses,
 		MaxDailyDrawdown:           c.Risk.MaxDailyDrawdown,
@@ -184,14 +199,14 @@ func initTradingComponents(ctx *ServiceContext, c config.Config) error {
 	}
 	ctx.RiskManager = risklogic.NewManager(riskRepo, riskConfig)
 
-	// 5. 初始化 OMS Manager
+	// 7. 初始化 OMS Manager
 	omsConfig := oms.Config{
 		SyncInterval: 5 * time.Second,
 		AutoSync:     true,
 	}
 	ctx.OMSManager = oms.NewManager(spotClient, ctx.OrderRepo, ctx.RiskManager, omsConfig)
 
-	// 6. 初始化 Strategy Engine
+	// 8. 初始化 Strategy Engine
 	// 默认使用 SimpleVolatility 策略
 	var strategyInstance strategy.Strategy
 	if c.Trading.StrategyType == "simple_volatility" || c.Trading.StrategyType == "" {
@@ -216,7 +231,7 @@ func initTradingComponents(ctx *ServiceContext, c config.Config) error {
 	accountID := "default-account" // 默认账户ID，后续可从配置读取
 	ctx.StrategyEngine = strategy.NewEngineWithOMS(strategyInstance, omsAdapter, accountID)
 
-	// 7. 初始化 TradingLoop
+	// 9. 初始化 TradingLoop
 	ctx.TradingLoop = NewTradingLoop(wsClient, ctx.StrategyEngine, c.Trading.Symbols, c.Trading.KlineInterval)
 
 	// 启动 OMS 自动同步

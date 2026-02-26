@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/shopspring/decimal"
@@ -128,4 +129,23 @@ func (m Money) Float64() float64 {
 // Decimal 获取底层 decimal.Decimal（内部使用）
 func (m Money) Decimal() decimal.Decimal {
 	return m.v
+}
+
+// MarshalJSON implements json.Marshaler
+func (m Money) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.v.String())
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (m *Money) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	d, err := decimal.NewFromString(s)
+	if err != nil {
+		return fmt.Errorf("invalid money value: %w", err)
+	}
+	m.v = d
+	return nil
 }

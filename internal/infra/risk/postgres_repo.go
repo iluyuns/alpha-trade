@@ -56,7 +56,7 @@ func (r *PostgresRepo) LoadState(ctx context.Context, accountID, symbol string) 
 		return nil, fmt.Errorf("load risk state failed: %w", err)
 	}
 
-	// 构建状态对象
+	// 构建状态对象：列数据为主（UpdateEquity/RecordTrade 仅更新列）
 	state := &model.RiskState{
 		AccountID:          accountID,
 		Symbol:             symbol,
@@ -75,12 +75,18 @@ func (r *PostgresRepo) LoadState(ctx context.Context, accountID, symbol string) 
 		state.LastResetDate = lastResetDate.Time.Format("2006-01-02")
 	}
 
-	// 如果有完整的 JSON 数据，覆盖解析
+	// 从 JSON 补充列中未存储的字段（PositionMap, MDD 等）
 	if stateData.Valid && stateData.String != "" {
-		var fullState model.RiskState
-		if err := json.Unmarshal([]byte(stateData.String), &fullState); err == nil {
-			// JSON 数据优先
-			return &fullState, nil
+		var extra model.RiskState
+		if err := json.Unmarshal([]byte(stateData.String), &extra); err == nil {
+			state.PositionMap = extra.PositionMap
+			state.TotalExposure = extra.TotalExposure
+			state.MDD = extra.MDD
+			state.MDDPercent = extra.MDDPercent
+			state.DailyTradeCount = extra.DailyTradeCount
+			state.DailyResetTime = extra.DailyResetTime
+			state.LastLossTime = extra.LastLossTime
+			state.UpdatedAt = extra.UpdatedAt
 		}
 	}
 
@@ -146,7 +152,7 @@ func (r *PostgresRepo) SaveState(ctx context.Context, state *model.RiskState) er
 	return err
 }
 
-// UpdateEquity 原子更新净值
+// UpdateEquity 原子更新净值，同时刷新 state_data JSON
 func (r *PostgresRepo) UpdateEquity(ctx context.Context, accountID string, newEquity model.Money) error {
 	query := `
 		UPDATE risk_states
@@ -161,10 +167,14 @@ func (r *PostgresRepo) UpdateEquity(ctx context.Context, accountID string, newEq
 	`
 
 	_, err := r.db.ExecContext(ctx, query, accountID, newEquity.String(), time.Now())
-	return err
+	if err != nil {
+		return err
+	}
+
+	return r.refreshStateData(ctx, accountID)
 }
 
-// RecordTrade 记录交易
+// RecordTrade 记录交易，同时刷新 state_data JSON
 func (r *PostgresRepo) RecordTrade(ctx context.Context, accountID string, pnl model.Money) error {
 	query := `
 		UPDATE risk_states
@@ -180,7 +190,11 @@ func (r *PostgresRepo) RecordTrade(ctx context.Context, accountID string, pnl mo
 	`
 
 	_, err := r.db.ExecContext(ctx, query, accountID, pnl.String(), time.Now())
-	return err
+	if err != nil {
+		return err
+	}
+
+	return r.refreshStateData(ctx, accountID)
 }
 
 // OpenCircuitBreaker 打开熔断器
@@ -212,6 +226,22 @@ func (r *PostgresRepo) CloseCircuitBreaker(ctx context.Context, accountID string
 
 	_, err := r.db.ExecContext(ctx, query, accountID, time.Now())
 	return err
+}
+
+// refreshStateData 重新序列化列数据到 state_data JSON（保持一致性）
+func (r *PostgresRepo) refreshStateData(ctx context.Context, accountID string) error {
+	state, err := r.LoadState(ctx, accountID, "")
+	if err != nil {
+		return nil // best-effort
+	}
+	data, err := json.Marshal(state)
+	if err != nil {
+		return nil
+	}
+	_, _ = r.db.ExecContext(ctx,
+		`UPDATE risk_states SET state_data = $2 WHERE account_id = $1 AND symbol = ''`,
+		accountID, data)
+	return nil
 }
 
 // IsCircuitBreakerOpen 检查熔断器状态
