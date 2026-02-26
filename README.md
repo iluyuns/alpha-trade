@@ -10,17 +10,19 @@
 ```
 Phase 1: 核心领域建模    ████████████████████  100% ✅
 Phase 2: 回测系统构建    ████████████████████  100% ✅
-Phase 3: 实盘接入适配    ██████░░░░░░░░░░░░░░   30% 🔄
+Phase 3: 实盘接入适配    ██████████████████░░   90% 🔄
 Phase 4: 生产环境部署    ░░░░░░░░░░░░░░░░░░░░    0% ⚪
 ```
 
 ### Phase 3 当前进展
 - ✅ Binance REST API 客户端 (100%)
-- 🔄 PostgreSQL 风控持久化 (50%)
-- ⚪ PostgreSQL OrderRepo
-- ⚪ WebSocket 行情订阅
-- ⚪ Redis 缓存层
-- ⚪ 订单状态同步
+- ✅ PostgreSQL 风控持久化 (100%)
+- ✅ PostgreSQL OrderRepo (100%)
+- ✅ WebSocket 行情订阅 + 自动重连 (100%)
+- ✅ Redis 缓存层 (PriceCache + 通用 Cache) (100%)
+- ✅ 订单状态同步 (OMS AutoSync) (100%)
+- ⚪ WebSocket 实盘端到端联调
+- ⚪ 生产环境参数调优
 
 ---
 
@@ -72,7 +74,10 @@ go test ./internal/strategy/... -v
 - `binance/` - Binance REST API 客户端 ⭐ **NEW**
 
 ### Infrastructure
-- `internal/infra/risk/` - 风控仓储（内存/PostgreSQL）
+- `internal/infra/risk/` - 风控仓储（内存/PostgreSQL/Redis）
+- `internal/infra/order/` - 订单仓储（内存/PostgreSQL）
+- `internal/infra/cache/` - Redis 缓存层（PriceCache + 通用缓存）
+- `internal/core/oms/` - 订单管理系统（风控集成 + 状态自动同步）
 - `internal/backtest/loader/` - CSV数据加载器
 
 ---
