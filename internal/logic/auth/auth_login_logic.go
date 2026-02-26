@@ -31,9 +31,8 @@ func (l *AuthLoginLogic) AuthLogin(req *types.LoginRequest) (resp *types.LoginRe
 	user, err := l.svcCtx.Users.FindByUsername(l.ctx, req.Username)
 	if err != nil {
 		l.recordAccessLog(0, "LOGIN", "FAIL", "USER_NOT_FOUND")
-		return nil, err
+		return nil, code.New(code.ErrUsernameOrPasswordIncorrect)
 	}
-	// 校验密码 (Argon2id 生产级校验)
 	match, err := crypto.VerifyPassword(req.Password, user.PasswordHash)
 	if err != nil || !match {
 		l.recordAccessLog(user.ID, "LOGIN", "FAIL", "INVALID_CREDENTIALS")

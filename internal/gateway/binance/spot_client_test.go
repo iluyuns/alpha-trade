@@ -127,8 +127,8 @@ func TestExtractSymbolFromOrderID(t *testing.T) {
 		orderID string
 		want    string
 	}{
-		{"with symbol prefix", "BTCUSDT-uuid-123", "BTCUSDT"},
-		{"short symbol", "BTC-uuid-456", "BTC"},
+		{"uuid-v7 format", "0190d7e0-f4b0-7000-8000-00805f9b34fb-BTCUSDT", "BTCUSDT"},
+		{"short uuid format", "abc123-ETHUSDT", "ETHUSDT"},
 		{"no separator", "BTCUSDT123", ""},
 		{"empty", "", ""},
 	}

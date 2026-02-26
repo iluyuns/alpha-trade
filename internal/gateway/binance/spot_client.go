@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	binance_connector "github.com/binance/binance-connector-go"
@@ -280,17 +281,12 @@ func (c *SpotClient) convertOrderStatus(status string) model.OrderStatus {
 }
 
 // extractSymbolFromOrderID 从订单ID提取交易对
-// 假设订单ID格式: BTCUSDT-uuid 或 uuid-BTCUSDT
+// 订单ID格式: {uuid}-{SYMBOL} (由 strategy.generateOrderID 生成)
+// UUID v7 含 4 个 `-`，symbol 在最后一个 `-` 之后
 func (c *SpotClient) extractSymbolFromOrderID(orderID string) string {
-	// 简化实现：假设前缀是 symbol
-	// 实际应该有更健壮的解析逻辑
-	if len(orderID) > 7 && orderID[0:3] != "" {
-		// 尝试提取前缀
-		for i := 0; i < len(orderID); i++ {
-			if orderID[i] == '-' {
-				return orderID[0:i]
-			}
-		}
+	idx := strings.LastIndex(orderID, "-")
+	if idx >= 0 && idx < len(orderID)-1 {
+		return orderID[idx+1:]
 	}
 	return ""
 }

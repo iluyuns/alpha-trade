@@ -58,7 +58,9 @@ func (m *CachedRevocationManager) IsRevoked(ctx context.Context, uid int64, issu
 	// 1. 先查 Cache
 	val, ok := m.cache.Get(uidStr)
 	if ok {
-		return issuedAt.Before(val.(time.Time))
+		if t, tok := val.(time.Time); tok {
+			return issuedAt.Before(t)
+		}
 	}
 
 	// 2. Cache 未命中，使用 SingleFlight 处理并发穿透并回源 DB
