@@ -91,6 +91,8 @@ func (m *Manager) CheckPreTrade(ctx context.Context, req *OrderContext) (Decisio
 	if state.ShouldResetDaily(time.Now()) {
 		state.ResetDaily()
 		_ = m.repo.SaveState(ctx, state)
+		m.InvalidateCache(req.AccountID, "")
+		state, _ = m.loadState(ctx, req.AccountID, "")
 	}
 
 	// 3. 规则链检查（短路评估）

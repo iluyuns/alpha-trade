@@ -20,7 +20,10 @@ func (m *Manager) CheckPositionLimit(ctx context.Context, req *OrderContext, sta
 
 	// 1. 单标的仓位限制
 	if m.config.MaxSinglePositionPercent > 0 && state.CurrentEquity.IsPositive() {
-		existingPosition := state.PositionMap[req.Symbol]
+		var existingPosition model.Money
+		if state.PositionMap != nil {
+			existingPosition = state.PositionMap[req.Symbol]
+		}
 		newPosition := existingPosition.Add(orderNotional)
 		positionPercent := newPosition.Div(state.CurrentEquity).Float64()
 
@@ -52,9 +55,10 @@ func (m *Manager) CheckPositionLimit(ctx context.Context, req *OrderContext, sta
 		}
 	}
 
-	// 2. 总敞口限制
+	// 2. 总敞口限制（使用完整名义价值，不扣杠杆）
+	fullNotional := calculateFullNotional(req)
 	if m.config.MaxTotalExposurePercent > 0 && state.CurrentEquity.IsPositive() {
-		newTotalExposure := state.TotalExposure.Add(orderNotional)
+		newTotalExposure := state.TotalExposure.Add(fullNotional)
 		exposurePercent := newTotalExposure.Div(state.CurrentEquity).Float64()
 
 		if exposurePercent > m.config.MaxTotalExposurePercent {
@@ -66,16 +70,22 @@ func (m *Manager) CheckPositionLimit(ctx context.Context, req *OrderContext, sta
 		}
 	}
 
-	// 3. 现金储备检查
+	// 3. 现金储备检查（基于保证金占用）
 	if m.config.MinCashReservePercent > 0 && state.CurrentEquity.IsPositive() {
 		requiredCash := state.CurrentEquity.Mul(model.NewMoneyFromFloat(m.config.MinCashReservePercent))
-		availableCash := state.CurrentEquity.Sub(state.TotalExposure).Sub(orderNotional)
+		usedCash := state.TotalExposure.Add(orderNotional)
+		availableCash := state.CurrentEquity.Sub(usedCash)
+
+		// 防止负数百分比显示
+		availablePercent := 0.0
+		if availableCash.IsPositive() {
+			availablePercent = availableCash.Div(state.CurrentEquity).Float64()
+		}
 
 		if availableCash.LT(requiredCash) {
 			return NewBlock(
 				fmt.Sprintf("insufficient cash reserve: required %.2f%%, available %.2f%%",
-					m.config.MinCashReservePercent*100,
-					availableCash.Div(state.CurrentEquity).Float64()*100),
+					m.config.MinCashReservePercent*100, availablePercent*100),
 				"PositionLimit:CashReserve",
 			)
 		}
@@ -114,20 +124,30 @@ func (m *Manager) checkPositionLimit(ctx context.Context, req *OrderContext, sta
 	return m.CheckPositionLimit(ctx, req, state)
 }
 
-// calculateNotional 计算订单名义价值
+// calculateNotional 计算订单名义价值（现货=全额，合约=保证金）
+// 现货: price × quantity
+// 合约: price × quantity / leverage (保证金占用)
 func calculateNotional(req *OrderContext) model.Money {
 	price := req.Price
 	if price.IsZero() {
-		// 市价单使用当前价格
 		price = req.CurrentPrice
 	}
 
 	notional := price.Mul(req.Quantity)
 
-	// 合约杠杆调整
+	// 合约：返回保证金占用（名义价值 / 杠杆）
 	if req.MarketType == model.MarketTypeFuture && req.Leverage > 1 {
 		notional = notional.Div(model.NewMoneyFromInt(int64(req.Leverage)))
 	}
 
 	return notional
+}
+
+// calculateFullNotional 计算完整名义价值（不除以杠杆，用于敞口计算）
+func calculateFullNotional(req *OrderContext) model.Money {
+	price := req.Price
+	if price.IsZero() {
+		price = req.CurrentPrice
+	}
+	return price.Mul(req.Quantity)
 }

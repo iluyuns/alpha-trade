@@ -44,7 +44,7 @@ func (r *MemoryRiskRepo) SaveState(ctx context.Context, state *model.RiskState) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := makeKey(state.AccountID, "")
+	key := makeKey(state.AccountID, state.Symbol)
 	r.states[key] = copyState(state)
 	return nil
 }

@@ -27,13 +27,14 @@ func (m *Manager) CheckCircuitBreaker(ctx context.Context, req *OrderContext, st
 		// 熔断器已过期，自动关闭
 		state.CloseCircuitBreaker()
 		_ = m.repo.SaveState(ctx, state)
+		m.InvalidateCache(req.AccountID, "")
 	}
 
 	// 2. 检查连续亏损次数
 	if m.config.MaxConsecutiveLosses > 0 && state.ConsecutiveLosses >= m.config.MaxConsecutiveLosses {
-		// 打开熔断器（1小时冷却）
 		state.OpenCircuitBreaker(1 * time.Hour)
 		_ = m.repo.SaveState(ctx, state)
+		m.InvalidateCache(req.AccountID, "")
 
 		return NewBlock(
 			fmt.Sprintf("consecutive losses (%d) >= max allowed (%d)",
@@ -46,8 +47,9 @@ func (m *Manager) CheckCircuitBreaker(ctx context.Context, req *OrderContext, st
 	if m.config.MaxDailyDrawdown > 0 && state.CurrentEquity.IsPositive() {
 		dailyPnLPercent := state.DailyPnL.Div(state.CurrentEquity).Float64()
 		if dailyPnLPercent < -m.config.MaxDailyDrawdown {
-			state.OpenCircuitBreaker(24 * time.Hour) // 次日重置
+			state.OpenCircuitBreaker(24 * time.Hour)
 			_ = m.repo.SaveState(ctx, state)
+			m.InvalidateCache(req.AccountID, "")
 
 			return NewBlock(
 				fmt.Sprintf("daily drawdown (%.2f%%) >= max allowed (%.2f%%)",
@@ -61,8 +63,9 @@ func (m *Manager) CheckCircuitBreaker(ctx context.Context, req *OrderContext, st
 	if m.config.MaxTotalMDD > 0 {
 		totalMDDPercent := state.MDDPercent.Float64()
 		if totalMDDPercent >= m.config.MaxTotalMDD {
-			state.OpenCircuitBreaker(7 * 24 * time.Hour) // 7天冷却
+			state.OpenCircuitBreaker(7 * 24 * time.Hour)
 			_ = m.repo.SaveState(ctx, state)
+			m.InvalidateCache(req.AccountID, "")
 
 			return NewBlock(
 				fmt.Sprintf("total MDD (%.2f%%) >= max allowed (%.2f%%)",
