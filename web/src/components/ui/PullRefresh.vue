@@ -54,6 +54,7 @@ const handleTouchStart = (e: TouchEvent) => {
   if (props.disabled || isRefreshing.value) return
   
   const touch = e.touches[0]
+  if (!touch) return
   startY.value = touch.clientY
   isPulling.value = true
 }
@@ -62,6 +63,7 @@ const handleTouchMove = (e: TouchEvent) => {
   if (!isPulling.value || props.disabled || isRefreshing.value) return
   
   const touch = e.touches[0]
+  if (!touch) return
   const deltaY = touch.clientY - startY.value
   
   if (deltaY > 0 && window.scrollY === 0) {

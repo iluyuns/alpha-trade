@@ -25,7 +25,6 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue'
 import type { SystemHealthItem } from '@/stores/dashboard'
 
 const props = defineProps<{

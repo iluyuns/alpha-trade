@@ -20,10 +20,10 @@ export interface LoginResponse {
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
-  const user = ref<UserInfo | null>(() => {
+  const user = ref<UserInfo | null>((() => {
     const userStr = localStorage.getItem('user')
     return userStr ? JSON.parse(userStr) : null
-  })
+  })())
 
   const isAuthenticated = () => {
     return !!token.value
