@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/iluyuns/alpha-trade/internal/pkg/ctxval"
 	"github.com/iluyuns/alpha-trade/internal/pkg/jwt"
 	"github.com/iluyuns/alpha-trade/internal/pkg/revocation"
 	"github.com/iluyuns/alpha-trade/internal/query"
@@ -57,15 +58,11 @@ func (m *AuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// 将 uid 注入 context，方便 logic 层通过 ctx.Value 获取
-		ctx := context.WithValue(r.Context(), "uid", claims.UserId)
-		// 注入 scope 供后续 logic 校验使用
-		ctx = context.WithValue(ctx, "scope", claims.Scope)
-		// 注入原始 token，供注销等逻辑使用
-		ctx = context.WithValue(ctx, "token", tokenStr)
-		// 注入过期时间，用于黑名单准确设置 TTL
+		ctx := context.WithValue(r.Context(), ctxval.UIDKey, claims.UserId)
+		ctx = context.WithValue(ctx, ctxval.ScopeKey, string(claims.Scope))
+		ctx = context.WithValue(ctx, ctxval.TokenKey, tokenStr)
 		if claims.ExpiresAt != nil {
-			ctx = context.WithValue(ctx, "exp", claims.ExpiresAt.Time)
+			ctx = context.WithValue(ctx, ctxval.ExpKey, claims.ExpiresAt.Time)
 		}
 
 		next(w, r.WithContext(ctx))

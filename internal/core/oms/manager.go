@@ -13,24 +13,18 @@ import (
 )
 
 // Manager 订单管理系统（Order Management System）
-// 职责：
-// 1. 订单状态同步（Gateway <-> OrderRepo）
-// 2. 订单生命周期管理
-// 3. 与 RiskManager 集成（确保订单通过风控）
 type Manager struct {
 	mu sync.RWMutex
 
-	// 依赖注入
 	spotGateway port.SpotGateway
 	orderRepo   port.OrderRepo
 	riskMgr     *riskmgr.Manager
 
-	// 配置
 	config Config
 
-	// 状态同步
-	syncInterval time.Duration // 状态同步间隔
+	syncInterval time.Duration
 	stopChan     chan struct{}
+	stopped      bool
 }
 
 // Config OMS 配置
@@ -115,9 +109,14 @@ func (m *Manager) PlaceOrder(ctx context.Context, req *PlaceOrderRequest) (*mode
 	// 记录订单延迟
 	metrics.DefaultMetrics.OrderLatency.Observe(time.Since(startTime).Seconds())
 
-	// 4. 持久化订单
+	// 4. 持久化订单（失败时尝试撤单补偿）
 	if err := m.orderRepo.SaveOrder(ctx, order); err != nil {
-		return nil, fmt.Errorf("save order failed: %w", err)
+		cancelReq := &port.SpotCancelOrderRequest{
+			ClientOrderID: order.ClientOrderID,
+			Symbol:        order.Symbol,
+		}
+		_ = m.spotGateway.CancelOrder(ctx, cancelReq)
+		return nil, fmt.Errorf("save order failed (cancel attempted): %w", err)
 	}
 
 	// 更新指标
@@ -238,9 +237,14 @@ func (m *Manager) StartAutoSync(ctx context.Context) {
 	}()
 }
 
-// StopAutoSync 停止自动同步
+// StopAutoSync 停止自动同步（安全的重复调用）
 func (m *Manager) StopAutoSync() {
-	close(m.stopChan)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !m.stopped {
+		m.stopped = true
+		close(m.stopChan)
+	}
 }
 
 // GetOrder 查询订单（优先从 OrderRepo，不存在则从 Gateway 同步）

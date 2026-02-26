@@ -60,8 +60,11 @@ func (m Money) Mul(other Money) Money {
 	return Money{v: m.v.Mul(other.v)}
 }
 
-// Div 除法
+// Div 除法（除零返回 Zero 而非 panic）
 func (m Money) Div(other Money) Money {
+	if other.v.IsZero() {
+		return Money{v: decimal.Zero}
+	}
 	return Money{v: m.v.Div(other.v)}
 }
 

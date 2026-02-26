@@ -40,8 +40,8 @@ func (s *SimpleVolatility) OnCandle(ctx context.Context, candle *model.Candle) (
 
 	currentPrice := candle.Close
 
-	// 初始化：记录首个价格
-	if s.lastPrice.IsZero() {
+	// 初始化 / 防除零
+	if s.lastPrice.IsZero() || currentPrice.IsZero() {
 		s.lastPrice = currentPrice
 		return nil, nil
 	}

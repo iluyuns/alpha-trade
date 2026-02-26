@@ -26,7 +26,7 @@ func NewAuthLogoutLogic(ctx context.Context, svcCtx *svc.ServiceContext) AuthLog
 }
 
 func (l *AuthLogoutLogic) AuthLogout() (resp *types.LogoutResponse, err error) {
-	uid, _ := l.ctx.Value("uid").(int64)
+	uid := ctxval.GetUID(l.ctx)
 
 	// 更新内存中的撤销状态
 	now := time.Now()

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/iluyuns/alpha-trade/internal/pkg/ctxval"
 	"github.com/iluyuns/alpha-trade/internal/svc"
 	"github.com/iluyuns/alpha-trade/internal/types"
 	"golang.org/x/oauth2"
@@ -32,8 +33,7 @@ func NewAuthOAuth2InitLogic(ctx context.Context, svcCtx *svc.ServiceContext) Aut
 }
 
 func (l *AuthOAuth2InitLogic) AuthOAuth2Init(req *types.OAuth2Request) (resp *types.OAuth2InitResponse, err error) {
-	// 从中间件注入的 Context 中获取 UID (用于绑定逻辑)
-	uid, _ := l.ctx.Value("uid").(int64)
+	uid := ctxval.GetUID(l.ctx)
 
 	var conf *oauth2.Config
 	switch req.Provider {
